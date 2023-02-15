@@ -1,0 +1,12 @@
+13:36:08 From  Paulo Rauber  to  Everyone:
+	I totally agree with Dominic
+13:36:36 From  Dominik Jeurissen  to  Everyone:
+	Domini(k) :)
+13:36:43 From  Paulo Rauber  to  Everyone:
+	Dominik :)
+13:39:22 From  Paulo Rauber  to  Everyone:
+	Simon, I think it depends a lot on whether you are actually trying to solve the problem efficiently or do something interesting with RL on this space
+13:39:39 From  Paulo Rauber  to  Everyone:
+	RL doesn't work well with non-stationary environments and requires even more data in that case
+13:40:01 From  Paulo Rauber  to  Everyone:
+	(multi-agent being non-stationary)
