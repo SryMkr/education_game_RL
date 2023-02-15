@@ -6,6 +6,7 @@ Version_3: 采用强化学习的方案。首先可以确定的是：这是一个
            但是每个人的目标难度又不一样。目前可以使用的方法有 （1）contextual bandits (2) recommadation system (3) spaced repetion (4) supervised problem （5）Q_Learning
            (2) 需要的数据量太大，（4）不是一个supervised problem因此可以采用的方式只有（1）和 (5). 
            本来训练一个agent适用于所有的学生，但是每个学生知识不一样，所以我们只能设计一个大概可以使用的agent，随后通过获取学生的数据来训练出适合自己的agent
+           是不是可以用聚类的Q值来给对应的难度解决强化学习无法解决的mutil-agent的问题
 需要回答的问题：（1）为什么用强化学习 （2）怎么用强化学习 （3）强化学习怎么和游戏设计理念融合 （4）整体游戏的框架怎么设计？
 
 
