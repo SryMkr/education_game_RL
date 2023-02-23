@@ -1,0 +1,4 @@
+1:首先了解open-spiel
+2:看案例是如何应用的
+3：如何将模板融入到我得游戏
+Simon或多多少得表达虽然Virtual Player 和tutor agent都有payoff，但是其实tutor得奖励可能并不重要
