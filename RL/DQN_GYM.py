@@ -1,4 +1,6 @@
-"""DQN的实际运用,需要自己调整参数"""
+"""DDQN的实际运用,需要自己调整参数
+唯一的区别就是在DDQN中 下一个状态的Q值用的是训练模型的Q值的最大值，在DQN中使用的是预测模型的Q值的最大值
+"""
 
 
 import os
@@ -9,7 +11,7 @@ import tensorflow as tf
 import tensorlayer as tl
 
 
-ALG_NAME = 'DQN'   # 算法的名字
+ALG_NAME = 'DDQN'   # 算法的名字
 ENV_ID = 'CartPole-v1'  # 游戏环境
 
 
@@ -94,11 +96,12 @@ class Agent:
             states, actions, rewards, next_states, done = self.buffer.sample()  # 一个batch大小的所有数据
             # compute the target value for the sample tuple
             target = self.target_model(states).numpy()  # 输出的是这个batch的状态所对应的动作值
-            next_target = self.target_model(next_states)  # 输出是这个batch中下一个状态所对应的动作值，区别在于state不一样，不用遍历
+            next_target = self.target_model(next_states).numpy()  # 输出是这个batch中下一个状态所对应的动作值，区别在于state不一样，不用遍历
             # targets [batch_size, action_dim]
             # Target represents the current fitting level
             # next_q_values [batch_size, action_dim]
-            next_q_value = tf.reduce_max(next_target, axis=1)   # 整个batch中下一个状态对应的动作的最大值
+            # next_q_value = tf.reduce_max(next_target, axis=1)   # DQN 整个batch中下一个状态对应的动作的最大值
+            next_q_value = next_target[range(self.buffer.batch_size), np.argmax(self.model(next_states), axis=1)]
             # 将整个batch的动作值进行更新
             target[range(self.buffer.batch_size), actions] = rewards + (1 - done) * self.gamma * next_q_value
 
