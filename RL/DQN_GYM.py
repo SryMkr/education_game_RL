@@ -9,8 +9,8 @@ import tensorflow as tf
 import tensorlayer as tl
 
 
-ALG_NAME = 'DQN'
-ENV_ID = 'CartPole-v1'
+ALG_NAME = 'DQN'   # 算法的名字
+ENV_ID = 'CartPole-v1'  # 游戏环境
 
 
 # 写一个经验回放的函数
@@ -43,43 +43,43 @@ class ReplayBuffer:
 
 # 定义agent
 class Agent:
-    def __init__(self, env):
-        self.env = env
-        self.state_dim = self.env.observation_space.shape[0]  # 4 选择了4个游戏参数作为特征 （4，0）
+    def __init__(self, env):  # 需要输入游戏环境
+        self.env = env  # 游戏环境
+        self.state_dim = self.env.observation_space.shape[0]  # =4 选择了4个游戏特征作为state （4，0）
         self.action_dim = self.env.action_space.n  # 【0，1】
 
         # 构建基本的神经网络
         def create_model(input_state_shape):
-            # 神经网络的输入层 第一个参数是张量的维度 一维向量，有4行，第二个参数是第一层名字
+            # 神经网络的输入层 第一个参数是张量的维度 一维列向量，有4行
             input_layer = tl.layers.Input(input_state_shape)
             # 中间层的节点数，中间层的激活函数，以及中间层的输入
             layer_1 = tl.layers.Dense(n_units=32, act=tf.nn.relu)(input_layer)
             layer_2 = tl.layers.Dense(n_units=16, act=tf.nn.relu)(layer_1)
-            # 定义输出层的维度，与动作空间的维度一致 一维的列向量
+            # 定义输出层的维度，与动作空间的维度一致 一维的列向量 （0，2）
             output_layer = tl.layers.Dense(n_units=self.action_dim)(layer_2)
             return tl.models.Model(inputs=input_layer, outputs=output_layer)
 
-        # 网络的输入层是一个一维的列向量【0，4】 一个是过去网络的输出结果
+        # 网络的输入层是【样本数量，状态维度】，只不过现在的样本数量未定义
         self.model = create_model([None, self.state_dim])
-        # 网络的目标网络是一个一维的列向量【0，4】 一个网络的更新目标
+        # 网络的目标网络列向量【样本数量，4】 一个网络的更新目标，这个是prediction，固定不变的
         self.target_model = create_model([None, self.state_dim])
-        self.model.train()  # 训练模型
-        self.target_model.eval()  # 将这个网络设置为优化目标，这是评估网络
-        # 优化模型，开始的学习率设置为一个较大的值，然后根据次数的增多，动态的减小学习率，以实现效率和效果的兼得
+        self.model.train()  # 训练网络
+        self.target_model.eval()  # 评估网络
+        # 都用adam的方式优化模型，开始的学习率设置为一个较大的值，然后根据次数的增多，动态的减小学习率，以实现效率和效果的兼得
         self.model_optim = self.target_model_optim = tf.optimizers.Adam(lr=1e-3)
         self.epsilon = 0.9  # 模糊因子
         self.buffer = ReplayBuffer()  # 将过去的记录保存下来，用来训练模型
         self.gamma = 0.9  # 折扣奖励
 
-    """Copy q network to target q network"""
+    # 这个是为了将最新训练的权重参数给目标网络
     def target_update(self):
         for weights, target_weights in zip(
                 self.model.trainable_weights, self.target_model.trainable_weights):
             target_weights.assign(weights)
 
-    #  为每一个状态选择一个动作，所以必须有输入state
+    #  为每一个状态选择一个动作，输入的是一个state的值
     def choose_action(self, state):
-        if np.random.uniform() > self.epsilon: # 10%的概率随机挑选动作
+        if np.random.uniform() > self.epsilon:  # 10%的概率随机挑选动作
             # 从动作空间中随机选择一个动作
             return np.random.choice(self.action_dim)
         else:
@@ -89,7 +89,7 @@ class Agent:
 
     # 更新网络参数
     def replay(self):
-        for _ in range(10):
+        for _ in range(10):  # 训练10次 model的权重是在一直变化，但是prediction的模型是上一次model训练得到的结果，这样就固定目标不变了
             # sample an experience tuple from the dataset(buffer)
             states, actions, rewards, next_states, done = self.buffer.sample()  # 一个batch大小的所有数据
             # compute the target value for the sample tuple
@@ -132,13 +132,13 @@ class Agent:
             total_reward, done = 0, False  # 初始化两个参数
             state = self.env.reset()  # 当前的状态是float类型
             state = state[0]  # 返回的元组里面有两个参数，第一个参数才是状态
-            while not done:  # 如果游戏没有结束
+            while not done:  # 如果游戏没有结束，收集数据
                 action = self.choose_action(state)  # 随机选择一个动作
                 next_state, reward, done, _, _ = self.env.step(action)  # 做了这个动作会返回下一个状态，奖励，以及游戏结束没有
                 next_state = next_state.astype(np.float32)  # 将下一个状态也转化为浮点型数据
                 self.buffer.push(state, action, reward, next_state, done)  # 将得到的数据存到buffer中
                 total_reward += reward  # 计算获得总奖励
-                state = next_state # 将当前的状态改为下一个状态
+                state = next_state  # 将当前的状态改为下一个状态
                 # self.render()
             if len(self.buffer.buffer) > self.buffer.batch_size:  # 如果buffer的大小已经大于batch__size
                 self.replay()  # 训练模型
@@ -172,7 +172,7 @@ class Agent:
 
 
 if __name__ == '__main__':
-    env = gym.make(ENV_ID, render_mode='human')  # 创建游戏环境
-    agent = Agent(env)  # agent得输入
-    agent.train(train_episodes=200)  # 玩游戏的次数
+    env = gym.make(ENV_ID, render_mode='human')  # 创建游戏环境，以及可视化训练和测试过程
+    agent = Agent(env)  # agent的输入游戏环境
+    agent.train(train_episodes=200)  # agent训练的次数
     env.close()  # 关闭游戏环境
