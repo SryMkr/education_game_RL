@@ -1,0 +1,156 @@
+# ----------------------------------
+# Policy Gradient for Continuous Env
+# Env: Pendulum-v0
+# Problem: Can't convergence
+# ----------------------------------
+
+import os
+import time
+import gym
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+import tensorflow_probability as tfp
+import tensorlayer as tl
+
+ENV_ID = 'Pendulum-v1'  # environment id
+RANDOM_SEED = 1  # random seed, can be either an int number or None
+
+
+ALG_NAME = 'PG'  # 算法名字
+TRAIN_EPISODES = 200  # 训练的最大次数
+TEST_EPISODES = 10  # 测试游戏的次数
+MAX_STEPS = 200  # 每个episode最大步长数
+
+
+class PolicyGradient:
+    def __init__(self, state_dim, action_dim, action_range, lr=0.001, gamma=0.99):
+        self.gamma = gamma
+        self.action_range = action_range  # 因为动作的力矩的取值空间为【-2，2】所以之传入一个最大值就可以，最小值可以直接取负数
+        self.state_buffer, self.action_buffer, self.reward_buffer = [], [], []
+        input_layer = tl.layers.Input([None, state_dim], dtype=tf.float32)  # 神经网络的输入都是state
+        layer_mu = tl.layers.Dense(n_units=100, act=tf.nn.relu)(input_layer)  # 这一层网络输出正态分布的均值
+        mu = tl.layers.Dense(n_units=action_dim, act=tf.nn.tanh)(layer_mu)  # 输出了一个值，正太分布的均值
+        # mu = tl.layers.Lambda(lambda x: x * action_range)(a)  #
+        layer_sigma = tl.layers.Dense(n_units=32, act=tf.nn.relu)(input_layer)  # 这一层网络输出正态分布的方差
+        sigma = tl.layers.Dense(n_units=action_dim, act=tf.nn.softplus)(layer_sigma)  # 正太分布的方差
+        self.model = tl.models.Model(inputs=input_layer, outputs=[mu, sigma])  # 正太分布的均值和方差,用来确定正态分布
+        self.model.train()
+        self.optimizer = tf.optimizers.Adam(lr)
+
+    def get_action(self, state):
+        s = state[np.newaxis, :].astype(np.float32)
+        mu, sigma = self.model(s)
+        pi = tfp.distributions.Normal(mu, sigma)  # 定义一个正太分布，如果是两个动作的话就需要将分布相乘，然后选择两个动作
+        a = tf.squeeze(pi.sample(1), axis=0)[0]  # 根据正态分布取一个值，作为动作的输出值
+        # clip的目的是将一个数组中的数据小于最小值的数据全部变为最小值，超过最大值的部分变为最大值
+        return np.clip(a, -self.action_range, self.action_range)
+
+    def store_transition(self, s, a, r):
+        self.state_buffer.append(np.array([s], np.float32))
+        self.action_buffer.append(a)
+        self.reward_buffer.append(r)
+
+    def learn(self):
+        discount_reward_buffer_norm = self._discount_and_norm_reward()
+        with tf.GradientTape() as tape:
+            mu, sigma = self.model(np.vstack(self.state_buffer))
+            pi = tfp.distributions.Normal(mu, sigma)
+            action = tf.clip_by_value(pi.sample(), -self.action_range, self.action_range)
+            log_prob = pi.log_prob(action)
+
+            loss = tf.reduce_sum(- log_prob * discount_reward_buffer_norm)
+
+        grad = tape.gradient(loss, self.model.trainable_weights)
+        self.optimizer.apply_gradients(zip(grad, self.model.trainable_weights))
+        self.state_buffer, self.action_buffer, self.reward_buffer = [], [], []
+
+    def _discount_and_norm_reward(self):
+        """ compute discount_and_norm_rewards """
+        discount_reward_buffer = np.zeros_like(self.reward_buffer)
+        running_add = 0
+        for t in reversed(range(0, len(self.reward_buffer))):
+            # Gt = R + gamma * V'
+            running_add = self.reward_buffer[t] + self.gamma * running_add
+            discount_reward_buffer[t] = running_add
+        # normalize episode rewards
+        discount_reward_buffer -= np.mean(discount_reward_buffer)
+        discount_reward_buffer /= np.std(discount_reward_buffer)
+        return discount_reward_buffer
+
+    def save(self):
+        path = os.path.join('model', '_'.join([ALG_NAME, ENV_ID]))
+        if not os.path.exists(path):
+            os.makedirs(path)
+        tl.files.save_weights_to_hdf5(os.path.join(path, 'pg_policy.hdf5'), self.model)
+        print("Succeed to save model weights !")
+
+    def load(self):
+        path = os.path.join('model', '_'.join([ALG_NAME, ENV_ID]))
+        tl.files.load_hdf5_to_weights_in_order(os.path.join(path, 'pg_policy.hdf5'), self.model)
+        print("Succeed to load model weights !")
+
+
+if __name__ == '__main__':
+    env = gym.make(ENV_ID, render_mode='human')  # 读取游戏环境，展示的模式
+    np.random.seed(RANDOM_SEED)
+    tf.random.set_seed(RANDOM_SEED)
+    env.reset(seed=RANDOM_SEED)
+    # 分别使用low, high, shape 调用动作空间的最小值，最大值，以及shape
+    agent = PolicyGradient(
+        state_dim=env.observation_space.shape[0],
+        action_dim=env.action_space.shape[0],
+        action_range=env.action_space.high
+    )
+
+    t0 = time.time()
+    all_episode_reward = []
+    for episode in range(TRAIN_EPISODES):
+        state = env.reset()[0]
+        episode_reward = 0
+        for step in range(MAX_STEPS):  # in one episode
+            env.render()
+            action = agent.get_action(state)
+            next_state, reward, done, _, _ = env.step(action)
+            agent.store_transition(state, action, reward)
+            state = next_state
+            episode_reward += reward
+            if done: break
+        agent.learn()  # 一个episode结束了才学习
+        print(
+            'Training  | Episode: {}/{}  | Episode Reward: {:.0f}  | Running Time: {:.4f}'.format(
+                episode + 1, TRAIN_EPISODES, episode_reward,
+                time.time() - t0
+            )
+        )
+
+        if episode == 0:
+            all_episode_reward.append(episode_reward)
+        else:
+            all_episode_reward.append(all_episode_reward[-1] * 0.9 + episode_reward * 0.1)
+
+    # agent.save()
+    plt.plot(all_episode_reward)
+    if not os.path.exists('image'):
+        os.makedirs('image')
+    plt.savefig(os.path.join('image', '_'.join([ALG_NAME, ENV_ID])))
+
+
+    # test
+    # agent.load()
+    for episode in range(TEST_EPISODES):
+        state = env.reset()[0]
+        episode_reward = 0
+        for step in range(MAX_STEPS):
+            env.render()
+            state, reward, done, info, _ = env.step(agent.get_action(state))
+            episode_reward += reward
+            if done:
+                break
+        print(
+            'Testing  | Episode: {}/{}  | Episode Reward: {:.0f}  | Running Time: {:.4f}'.format(
+                episode + 1, TEST_EPISODES, episode_reward,
+                time.time() - t0
+            )
+        )
+    env.close()
