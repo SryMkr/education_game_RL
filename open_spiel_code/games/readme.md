@@ -1,8 +1,12 @@
 这个文件里包含了4个游戏，这四个游戏是open-spiel/python/games里面的游戏，了解这四个游戏有助于了解如何注册一个open-spiel格式的游戏。以及对游戏中所有可能
 涉及到的专有名词有一定的了解。接下来介绍一些专有名词，以及注册一个游戏的基本框架。
+
 Step_1: 导入包，特别的一定包括import pyspiel,因为得继承里面的一些类实现自己的游戏，其他的包自己看情况使用。
+
 Step_2: 定义动作，看几个玩家能采取的动作一直是一样的？还是随着游戏的动作跟着变化
+
 Step_3: 一定要实现两个常量：
+
 _GAME_TYPE = pyspiel.GameType(
     short_name="python_kuhn_poker",  # 环境名字
     long_name="Python Kuhn Poker",
@@ -25,6 +29,7 @@ _GAME_TYPE = pyspiel.GameType(
     provides_observation_string=True,  # 是否提供information
     provides_observation_tensor=True,  # 是否提供information
     provides_factored_observation_string=True)  # 是否提供information
+    
 _GAME_INFO = pyspiel.GameInfo(
     num_distinct_actions=len(Action),  # 动作的个数
     max_chance_outcomes=len(_DECK),  # 在该例子当中，就是机会玩家手里有多少牌
@@ -33,6 +38,7 @@ _GAME_INFO = pyspiel.GameInfo(
     max_utility=2.0,  # 最大得分
     utility_sum=0.0,  # 效用总和为0，因为是个零和游戏
     max_game_length=3)  # e.g. Pass, Bet, Bet # 最大的游戏步长
+    
 Step_4: 实现游戏类：里面要有三种方法是强制需要的
     class YOUR_GAME_NAME(pyspiel.Game):
       def __init__(self, params=None):
@@ -45,6 +51,7 @@ Step_4: 实现游戏类：里面要有三种方法是强制需要的
       def make_py_observer(self, iig_obs_type=None, params=None):
           """Returns an object used for observing game state."""
           return KuhnPokerObserver(iig_obs_type or pyspiel.IIGObservationType(perfect_recall=False), params)
+          
 Step_5: 实现state类
     # 定义这个游戏的state可能存在的所有信息
     class KuhnPokerState(pyspiel.State):
