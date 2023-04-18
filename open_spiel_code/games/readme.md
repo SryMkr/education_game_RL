@@ -70,15 +70,18 @@ _GAME_INFO = pyspiel.GameInfo(
     
 Step_4: 实现游戏类：里面要有三种方法是强制需要的
     class YOUR_GAME_NAME(pyspiel.Game):
+    
       def __init__(self, params=None):
           super().__init__(_GAME_TYPE, _GAME_INFO, params or dict())
+          
       # 实现state
       def new_initial_state(self):  # 返回游戏最开始的状态，并且可以通过返回的类调用state所有想知道的值
-          """Returns a state corresponding to the start of a game."""
+         
           return KuhnPokerState(self)
+          
       # 实现observer,这块用自己的方法实现就行，没必要用他们的接口，具体查看test/observation.py
       def make_py_observer(self, iig_obs_type=None, params=None):
-          """Returns an object used for observing game state."""
+
           return KuhnPokerObserver(iig_obs_type or pyspiel.IIGObservationType(perfect_recall=False), params)
           
 Step_5: 实现state类
