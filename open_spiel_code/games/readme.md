@@ -8,36 +8,65 @@ Step_2: 定义动作，看几个玩家能采取的动作一直是一样的？还
 Step_3: 一定要实现两个常量：
 
 _GAME_TYPE = pyspiel.GameType(
+
     short_name="python_kuhn_poker",  # 环境名字
+    
     long_name="Python Kuhn Poker",
+    
     # 动态一共有三种类型：1：sequential 玩家有先后顺序 kuhn_poker 2: simultaneous game (石头剪刀布) 3：mean field game
+    
     dynamics=pyspiel.GameType.Dynamics.SEQUENTIAL, 
+    
     # deterministic：没有机会玩家； EXPLICIT_STOCHASTIC 游戏中有机会玩家,概率已知；Sampled_STOCHASTIC,游戏中有机会玩家,概率未知
+    
     # 这个东西在扑克牌的例子中就是美丽荷官在线发牌，在这个例子中概率是已知的
+    
     chance_mode=pyspiel.GameType.ChanceMode.EXPLICIT_STOCHASTIC,
+    
     # one-shot这种类型没搞明白; PERFECT_INFORMATION，玩家观察到的信息一样，IMPERFECT_INFORMATION，玩家观察到的信息不一样，受到private information的影响（扑克牌游戏）
+    
     information=pyspiel.GameType.Information.IMPERFECT_INFORMATION,  # 不完全信息的游戏
+    
     # identical表示玩家的回报是一样的，对称的（win +1, loss,-1, tie,0）
+    
     # general_sum 所有玩家的收益总和并不确定，不限制与一样，或者常数，或者为0（囚徒困境）
+    
     utility=pyspiel.GameType.Utility.ZERO_SUM,  # zero_sum 零和游戏, constant_sum,收益总和是一个常数
+    
     reward_model=pyspiel.GameType.RewardModel.TERMINAL,  # 返回rewards（在游戏中间返回收益），或者返回terminal（在游戏结束返回收益）
+    
     # 还有playerID的参数可以设定，可以直接调用
+    
     max_num_players=_NUM_PLAYERS,  # 最大的玩家个数
+    
     min_num_players=_NUM_PLAYERS,  # 最小的玩家个数
+    
     provides_information_state_string=True,  # 是否提供information
+    
     provides_information_state_tensor=True,  # 是否提供information
+    
     provides_observation_string=True,  # 是否提供information
+    
     provides_observation_tensor=True,  # 是否提供information
+    
     provides_factored_observation_string=True)  # 是否提供information
     
 _GAME_INFO = pyspiel.GameInfo(
+
     num_distinct_actions=len(Action),  # 动作的个数
+    
     max_chance_outcomes=len(_DECK),  # 在该例子当中，就是机会玩家手里有多少牌
+    
     num_players=_NUM_PLAYERS,  # 最多的玩家个数
+    
     min_utility=-2.0,  # 最小得分，就是一个游戏中的最高得分和最低得分
+    
     max_utility=2.0,  # 最大得分
+    
     utility_sum=0.0,  # 效用总和为0，因为是个零和游戏
+    
     max_game_length=3)  # e.g. Pass, Bet, Bet # 最大的游戏步长
+    
     
 Step_4: 实现游戏类：里面要有三种方法是强制需要的
     class YOUR_GAME_NAME(pyspiel.Game):
