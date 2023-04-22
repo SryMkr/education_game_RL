@@ -24,7 +24,7 @@ import numpy as np  # 导入numpy 包
 # state.apply_actions([1, 1])  # 囚徒困境中运用动作的方式，SIMULTANEOUS游戏
 
 # --------------------以下介绍的是imperfect game--------------------------------------
-game2 = pyspiel.load_game("kuhn_poker")  # 导入游戏
+# game2 = pyspiel.load_game("kuhn_poker")  # 导入游戏
 # state2 = game2.new_initial_state()  # 获得游戏的初始状态
 # print(state2) # 随时可以查看当前的state
 # print(state2.is_chance_node())  # 查看当前是不是机会玩家
