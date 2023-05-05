@@ -2,9 +2,9 @@
 # 想一下如何利用学生的准确性和完整度
 # 学生不知道正确答案是什么
 # 我的payoff是什么？才能达到我的目的
-# 搞明白如何利用attempt，然后把所有的过程打印出来
+problem 1： student do not forget anything, if student get correct, all get correct in all levels.
 """
-import enum
+
 import random
 from typing import List, Dict, Tuple, Union
 import Levenshtein
@@ -13,12 +13,7 @@ import pyspiel
 from random import choice
 import copy
 
-# the tasks pool
-_TASKS_POOL: List[str] = ['bow', 'sink', 'crane', 'tenant', 'condemn', 'expedite']
-
-# letters
-_LETTERS: List[str] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q',
-                       'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+_TASKS_POOL: List[str] = ['bow', 'sink', 'crane', 'tenant', 'condemn', 'expedite']  # the tasks pool
 
 # [letter,[confusing letters]]
 _CONFUSING_LETTER_DIC: Dict[str, List[str]] = {'a': ['e', 'i', 'o', 'u', 'y'], 'b': ['d', 'p', 'q', 't'],
@@ -32,7 +27,6 @@ _CONFUSING_LETTER_DIC: Dict[str, List[str]] = {'a': ['e', 'i', 'o', 'u', 'y'], '
                                                'x': ['s', 'z'], 'y': ['e', 'i'], 'z': ['c', 's']}
 
 
-#  input：list of words, output: task word
 class ChanceAction:
     def __init__(self, tasks_pool: List[str]) -> None:  # input: tasks pool list
         self._tasks_pool: List[str] = tasks_pool  # get the task list
@@ -121,36 +115,27 @@ class StudentAction:
             self.memory[int(green_letter_index)] = green_letter  # [index:letter]
             self.available_index.remove(int(green_letter_index))
             self.available_letters_copy.remove(green_letter)
-        # print('new available letter', self._available_letters)
-        # print('new available index', self.available_index)
 
         # 黄色的字母说明字母对了，那么选词空间除了绿色以外的位置，但是不能再原来的位置，其他位置都可选择,但是不能从原来的位置删除
         if yellow_letters:
             yellow_letter_index: List[str] = list(yellow_letters.keys())
-
-            # print('yellow_letter_index', yellow_letter_index)
             for item in yellow_letter_index:  # 获得所有的黄色标签
                 yellow_available_index: List[int] = copy.deepcopy(self.available_index)  # 所有黄色标签可以使用的位置
                 letter_index: int = int(item.split('_')[1])  # 获得当前的索引
                 # 后面那个条件是因为可能恰好出现，只能有一个位置使用的情况，而这个位置的索引和之前的位置一样，没有办法
                 if letter_index in self.available_index and letter_index != self.available_index[0]:
                     yellow_available_index.remove(letter_index)  # 得把当前的索引移除了，从剩下的索引中选择
-
                 _current_index: int = random.choice(yellow_available_index)
                 self.memory[_current_index] = item.split('_')[0]  # [index, letter]
                 self.available_letters_copy.remove(item.split('_')[0])
                 self.available_index.remove(_current_index)
 
-        # print(self.available_letters_copy)
-        # print(self.available_index)
         # for the rest of letters, randomly select from remaining available letters
         for index in self.available_index:  # the remaining available position
             chosen_letter: str = random.choice(self.available_letters_copy)
             self.memory[index] = chosen_letter  # [index:letter]
             self.available_letters_copy.remove(chosen_letter)  #
-        # print('new spelling', self.memory)
         list_tuple_spelling: List[str, str] = sorted(self.memory.items(), key=lambda memory_item: memory_item[0])
-        # print('new spelling', list_tuple_spelling)
         self.student_spelling = ''
         for index, letter in list_tuple_spelling:
             self.student_spelling += letter  # student new spelling
@@ -174,9 +159,9 @@ class TerminalAction:
 PLAYERS: Dict[int, any] = {-1: 'chance_player', -4: 'terminal_player', 1: 'tutor_player',
                            2: 'student_player', 3: 'examiner_player'}
 
-_ACTION_SPACE = {-1: ['get_task_word'], 1: ['deal_letters', 'adjust_difficulty_level'],
-                 2: ['spell_word', 'learn_from_history'],
-                 3: ['check_spelling'], -4: ["STOP"]}
+_ACTION_SPACE: Dict[int, List[str]] = {-1: ['get_task_word'], 1: ['deal_letters', 'adjust_difficulty_level'],
+                                       2: ['spell_word', 'learn_from_history'],
+                                       3: ['check_spelling'], -4: ["STOP"]}
 
 _NUM_PLAYERS = 3  # student agent, tutor agent，examiner agent
 _GAME_TYPE = pyspiel.GameType(
@@ -239,14 +224,16 @@ class WordMakerState:
         self._next_player: int = -1  # the initial first player is chance player
         self.current_difficulty_level: int = 1  # initial difficulty level
         self.total_attempts: int = 0
-        self.confusing_letter_setting: bool = False
+        self.confusing_letter_setting: int = 0
         self.student_answer_feedback: Tuple[any] = ()
         self.current_game_round: int = 1  # initialize the game round
         self.student_answer_accuracy: float = 0.  # record student spelling
         self.player_legal_action: str = ''  # record player legal action
         self.difficulty_level_decided: bool = False  # decide difficulty
+        self.next_attempt: int = 0  # record the next students attempt
 
     # how to print the legal action
+
     def legal_actions(self, player: int) -> str:  # get the legal action
         if player == -1:  # chance player
             self.player_legal_action = 'get_task_word'
@@ -256,9 +243,9 @@ class WordMakerState:
             self.player_legal_action = 'deal_letters'
         elif player == 1 and not self.difficulty_level_decided:  # tutor player
             self.player_legal_action = 'adjust_difficulty_level'
-        elif player == 2 and self.current_game_round == 1:  # student agent
+        elif player == 2 and self.next_attempt == 0 and self.current_game_round == 1:  # student agent
             self.player_legal_action = 'spell_word'
-        elif player == 2 and self.current_game_round != 1:  # student agent
+        elif player == 2:  # student agent
             self.player_legal_action = 'learn_from_history'
         elif player == 3:  # examiner agent
             self.player_legal_action = 'check_spelling'
@@ -299,8 +286,6 @@ class WordMakerState:
                     (self.current_difficulty_level)
                 self._next_player = 1  # 决定了难度之后，还要分发字母
                 self.difficulty_level_decided = True  # 难度已经确定
-            # print(self.student_available_letter, self.task_word_length)
-            # print(self.total_attempts, self.confusing_letter_setting)
 
         elif current_player_id[0] == 2:  # if student player
             self.student_player = StudentAction(self.student_available_letter, self.task_word_length)  # instance
@@ -308,6 +293,7 @@ class WordMakerState:
                 self._student_agent_spelling = getattr(self.student_player, action)()
             else:
                 self._student_agent_spelling = getattr(self.student_player, action)(*self.student_answer_feedback)
+            self.next_attempt += 1  # student attempt plus one
             self._next_player = 3  # 学生给了答案以后轮到打分的老师
             # print(self._student_agent_spelling)
 
@@ -316,133 +302,115 @@ class WordMakerState:
             self.student_answer_feedback = getattr(self.examiner_player, action)(self._student_agent_spelling,
                                                                                  self._current_task)
             _, _, _, self.student_answer_accuracy, _ = self.student_answer_feedback
-            # print(self.student_answer_feedback)
-            if self.student_answer_accuracy != 1.0:  # spelling correct
-                if self.current_game_round != 4:  # not the last round
-                    self.current_game_round += 1  # game round plus one
+            if self.student_answer_accuracy != 1.0:  # spelling not correct
+                if self.next_attempt < self.total_attempts:  # run out of total attempts?
                     self._next_player = 2  # student continue to spelling
-                else:  # it is the last round
-                    self.current_game_round = 1  # the initial round equal to 1
-                    self._next_player = -4  # terminate player end the game
-                    self._game_over = True
-            else:  # same with the above situation
-                if self.current_game_round != 4:
-                    self.current_game_round += 1
-                    self._next_player = 2
-                else:
+
+                else:  # 如果机会次数已经用完了
+                    if self.current_game_round < 4:  # 要判断游戏结束没有
+                        self.current_game_round += 1  # game round plus one
+                        self.current_difficulty_level += 1  # difficulty plus one
+                        self.difficulty_level_decided = False  # 还没决定难度
+                        self._next_player = 1  # tutor agent
+                        self.next_attempt = 0  # 机会次数也要归零重新计数
+                    else:  # 如果已经到了第四轮
+                        self.current_game_round = 1
+                        self._next_player = -4
+
+            else:  # 如果学生答对了题目
+                if self.current_game_round < 4:  # 如果没有到第四轮
+                    self.current_difficulty_level += 1  # difficulty plus one
+                    self.difficulty_level_decided = False  # 还没决定难度
+                    self.current_game_round += 1  # 游戏论次也要加一
+                    self._next_player = 1  # 需要老师重新发单词，决定难度
+                    self.next_attempt = 0  # 机会次数也要归零重新计数
+
+                else:  # 如果是最后一轮答对的
                     self.current_game_round = 1
                     self._next_player = -4
-                    self._game_over = True
 
     def is_terminal(self):  # want to know the game terminate or not
         return self._game_over
-    # 明天实现这个打印所有的信息
 
-    # def __str__(self):  # 前两位返回的是AB两个玩家手牌，后面的返回的是两个玩家决策路径
-    #     """String for debug purposes. No particular semantics are required."""
-    #     return "".join([str(c) for c in self.cards] + ["pb"[b] for b in self.bets])
+    def rewards(self):  # 如何奖励老师给了正确的难度，不仅能最快的到达四难度，而且还能还能保持每一关的正确率
+        """Total reward for each player over the course of the game so far."""
+        pass
+
+    # 打印一些信息
+    def __str__(self):
+        return f"player_action:{self.player_legal_action},next_player:{PLAYERS[self._next_player]}, current_task:{self._current_task},task_word_length:{self.task_word_length}," \
+               f"game_state:{self._game_over},current_difficulty_level:{self.current_difficulty_level}, current_round:{self.current_game_round}," \
+               f"total_attempts:{self.total_attempts},confusing_letter_set:{self.confusing_letter_setting}," \
+               f"student_available_letter:{self.student_available_letter},student_spelling:{self._student_agent_spelling}," \
+               f"next_attempts:{self.next_attempt},student_answer_feedback:{self.student_answer_feedback}," \
+               f" "
 
 
-state = WordMakerState(tasks_pool=_TASKS_POOL)
-while not state.is_terminal():
-    state.apply_action(state.legal_actions(state._next_player))
-    print(f'current_task:{state._current_task}, terminal_or_not:{state.is_terminal()}, '
-          f'current game round:{state.current_game_round}, student_spelling:{state._student_agent_spelling},'
-    f'current_player:{state._next_player}, agent_legal_action:{state.legal_actions(state._next_player)}')
+for i in range(10):
+    print(i)
+    state = WordMakerState(tasks_pool=_TASKS_POOL)
+    while not state.is_terminal():
+        state.apply_action(state.legal_actions(state._next_player))
+        print(state)
+
+_LETTERS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+            'v', 'w', 'x', 'y', 'z']
 
 
+class WordMakerObserver:
+    def __init__(self, iig_obs_type, params):
+        """Initializes an empty observation tensor."""
+        if params:
+            raise ValueError(f"Observation parameters not supported; passed {params}")
+        # Determine which observation pieces we want to include.
+        # chance, tutor, student, examiner
+        pieces = [("player", 4, (4,))]  # the format of one-hot
+        if iig_obs_type.private_info == pyspiel.PrivateInfoType.SINGLE_PLAYER:  # 正确的答案
+            pieces.append(("correct_answer", 6, (6,)))  # indicate the index of tasks list
+            if iig_obs_type.public_info:  # public information
+                # perfect recall means it will record spelling history
+                if iig_obs_type.perfect_recall:  # one-hot的形式记录决策路径，最多有三个回合，所以需要三行，左边代表P，右边代表B
+        #                 pieces.append(("betting", 6, (3, 2)))
+        #             else:  # 如果不允许回忆之前的路径，就看当前的资金池的信息
+        #                 pieces.append(("pot_contribution", 2, (2,)))
+        #
+        #         # Build the single flat tensor. 看需要多少列才能表达了所有的信息
+        #         total_size = sum(size for name, size, shape in pieces)
+        #         self.tensor = np.zeros(total_size, np.float32)  # 那么一个tensor就包括想要的所有信息
+        #
+        #         # Build the named & reshaped views of the bits of the flat tensor.
+        #         # 重新搭建之前坦平的tensor
+        self.dict = {}  # 定义一个字典来记录玩家看到的obs
 
-# def chance_outcomes(self) -> Tuple[str, float]:  # chance player [word, probability]
-#     self._current_task: str = self.chance_player.task_word  # get the task word
-#     p: float = 1.0 / len(self._TASKS_POOL)  # 如果牌库里三张牌，那么每张牌的概率是1/3，如果只剩两张概率变为1/2
-#     return self._current_task, p  # 返回所有可能的（card, probability）
-#
-#     def _action_to_string(self, player, action):  # 输入玩家和采取的动作
-#         """Action -> string."""
-#         if player == pyspiel.PlayerId.CHANCE:  # 如果还是发牌员，现在还是平手
-#             return f"Deal:{action}"
-#         elif action == Action.PASS:  # 如果动作是pass就返回pass
-#             return "Pass"
-#         else:  # 如果动作是bet就返回bet
-#             return "Bet"
-#
+    #         index = 0  # 记录一个索引，用来隔断各个信息
+    #         for name, size, shape in pieces:  # 循环所有的obs，用字典的形式记录所有的信息
+    #             self.dict[name] = self.tensor[index:index + size].reshape(shape)
+    #             index += size
+    #
+    #     def set_from(self, state, player):  # 该方式返回的是字典的形式
+    #         """Updates `tensor` and `dict` to reflect `state` from PoV of `player`."""
+    #         self.tensor.fill(0)  # 首先tensor中的所有值都是0
+    #         if "player" in self.dict:
+    #             self.dict["player"][player] = 1  # 用【0，1】【1，0】表示哪个玩家
+    #         if "private_card" in self.dict and len(state.cards) > player:  # 玩家手里得有牌
+    #             self.dict["private_card"][state.cards[player]] = 1  # 【1,0,0】[0,1,0][0,0,1] 分别表示哪张牌
+    #         if "pot_contribution" in self.dict:  # 想要看到赌注
+    #             self.dict["pot_contribution"][:] = state.pot  # 直接复制，不用one-hot
+    #         if "betting" in self.dict:  # 看看有没有押注
+    #             for turn, action in enumerate(state.bets):  # 返回（索引，值）
+    #                 self.dict["betting"][turn, action] = 1  # 返回的是进行的什么操作
 
-#
-#     def returns(self):  # 返回一轮结束后的输赢奖励
-#         """Total reward for each player over the course of the game so far."""
-#         pot = self.pot  # 每个玩家的赌注【a,b】
-#         winnings = float(min(pot))  # 获得赌注的最小值
-#         if not self._game_over:
-#             # 游戏还没结束都是【0，0】
-#             return [0., 0.]
-#         elif pot[0] > pot[1]:  # action:【1，0】pot:【2，1】说明a赢了,那么a加1分，b减1分
-#             return [winnings, -winnings]
-#         elif pot[0] < pot[1]:  # action:【0，1】 pot:【1，2】 说明b赢了,那么b加1分，a减1分
-#             return [-winnings, winnings]
-#         elif self.cards[0] > self.cards[1]:  # 另外的三种情况都是要比较卡牌大小的，资金池的钱都一样
-#             return [winnings, -winnings]
-#         else:
-#             return [-winnings, winnings]
-#
+    def string_from(self, state, player):  # 返回string的形式，更加符合人类的语言
+        """Observation of `state` from the PoV of `player`, as a string."""
+        pieces = []
+        if "player" in self.dict:
+            pieces.append(f"p{player}")  # p0, p1
+        if "private_card" in self.dict and len(state.cards) > player:
+            pieces.append(f"card:{state.cards[player]}")  # card:0,card:1,card:2
+        if "pot_contribution" in self.dict:
+            pieces.append(f"pot[{int(state.pot[0])} {int(state.pot[1])}]")  # pot[2 2]
+        if "betting" in self.dict and state.bets:
+            pieces.append("".join("pb"[b] for b in state.bets))  # 'pb'
+        return " ".join(str(p) for p in pieces)
 
-#
-#
-# class WordMakerObserver:  # 游戏的观察者，可能是返回某一个observation
-#     """Observer, conforming to the PyObserver interface (see observation.py)."""
-#
-#     def __init__(self, iig_obs_type, params):
-#         """Initializes an empty observation tensor."""
-#         if params:  # 游戏开始observation没有任何参数，如果有就要抛出一个异常
-#             raise ValueError(f"Observation parameters not supported; passed {params}")
-#
-#         # Determine which observation pieces we want to include. 都是 one-hot的形式，所以才有这个维度
-#         # 决定一个玩家可以看的那些信息
-#         pieces = [("player", 2, (2,))]  # one-hot的形式表示当前是哪个玩家的回合
-#         if iig_obs_type.private_info == pyspiel.PrivateInfoType.SINGLE_PLAYER:  # 私人的信息
-#             pieces.append(("private_card", 3, (3,)))  # （one-hot）（手中的牌）
-#         if iig_obs_type.public_info:  # 公共的信息
-#             if iig_obs_type.perfect_recall:  # one-hot的形式记录决策路径，最多有三个回合，所以需要三行，左边代表P，右边代表B
-#                 pieces.append(("betting", 6, (3, 2)))
-#             else:  # 如果不允许回忆之前的路径，就看当前的资金池的信息
-#                 pieces.append(("pot_contribution", 2, (2,)))
-#
-#         # Build the single flat tensor. 看需要多少列才能表达了所有的信息
-#         total_size = sum(size for name, size, shape in pieces)
-#         self.tensor = np.zeros(total_size, np.float32)  # 那么一个tensor就包括想要的所有信息
-#
-#         # Build the named & reshaped views of the bits of the flat tensor.
-#         # 重新搭建之前坦平的tensor
-#         self.dict = {}  # 定义一个字典来记录玩家看到的obs
-#         index = 0  # 记录一个索引，用来隔断各个信息
-#         for name, size, shape in pieces:  # 循环所有的obs，用字典的形式记录所有的信息
-#             self.dict[name] = self.tensor[index:index + size].reshape(shape)
-#             index += size
-#
-#     def set_from(self, state, player):  # 该方式返回的是字典的形式
-#         """Updates `tensor` and `dict` to reflect `state` from PoV of `player`."""
-#         self.tensor.fill(0)  # 首先tensor中的所有值都是0
-#         if "player" in self.dict:
-#             self.dict["player"][player] = 1  # 用【0，1】【1，0】表示哪个玩家
-#         if "private_card" in self.dict and len(state.cards) > player:  # 玩家手里得有牌
-#             self.dict["private_card"][state.cards[player]] = 1  # 【1,0,0】[0,1,0][0,0,1] 分别表示哪张牌
-#         if "pot_contribution" in self.dict:  # 想要看到赌注
-#             self.dict["pot_contribution"][:] = state.pot  # 直接复制，不用one-hot
-#         if "betting" in self.dict:  # 看看有没有押注
-#             for turn, action in enumerate(state.bets):  # 返回（索引，值）
-#                 self.dict["betting"][turn, action] = 1  # 返回的是进行的什么操作
-#
-#     def string_from(self, state, player):  # 返回string的形式，更加符合人类的语言
-#         """Observation of `state` from the PoV of `player`, as a string."""
-#         pieces = []
-#         if "player" in self.dict:
-#             pieces.append(f"p{player}")  # p0, p1
-#         if "private_card" in self.dict and len(state.cards) > player:
-#             pieces.append(f"card:{state.cards[player]}")  # card:0,card:1,card:2
-#         if "pot_contribution" in self.dict:
-#             pieces.append(f"pot[{int(state.pot[0])} {int(state.pot[1])}]")  # pot[2 2]
-#         if "betting" in self.dict and state.bets:
-#             pieces.append("".join("pb"[b] for b in state.bets))  # 'pb'
-#         return " ".join(str(p) for p in pieces)
-#
-#
 # pyspiel.register_game(_GAME_TYPE, WordMakerGame)  # 注册游戏，然后很多方法就可以直接使用了
