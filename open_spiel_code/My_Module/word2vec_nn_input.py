@@ -51,8 +51,16 @@ def get_phonetic_components(word):
             cmu_phonetic_components.append(phoneme_without_stress.split(" ")[0])
             ipa_phonetic_components.append(ipa_phoneme.split(" ")[0])
     return cmu_phonetic_components, ipa_phonetic_components
-#
-#
+
+
+# -----------------------------测试四级库中的每个单词都有音标---------------
+# file_path = "split_CN_EN/cet4_english.txt"
+# with open(file_path, 'r', encoding='utf-8') as file:  # 以UTF-8的方式打开
+#     for line in file:  # 一行一行的读，一行就是文件中的一行
+#         line = line.strip()  # 每一行都去头去尾换行符，或者空格
+#         cmu_phonemes, ipa_phonemes = get_phonetic_components(line.split(' ')[0])
+#         print(cmu_phonemes)
+
 # # ---------------------------------------以下是为了得到神经网络的输入---------------------------------------------
 # cmu_phoneme_model = Word2Vec.load("phonetic2vector/phonetic_trained_vector.bin")  # 加载音标向量模型
 # chinese_model = Word2Vec.load("split_CN_EN/cet4_chinese_vector.model")  # 得到中文向量的模型
@@ -76,4 +84,6 @@ def get_phonetic_components(word):
 #     with open('nn_input.json', 'a', encoding='utf-8') as fw:
 #         json.dump(json_dic, fw, ensure_ascii=False)
 #         fw.write('\n')
+
+
 
