@@ -1,41 +1,40 @@
 """
-1: 文件中的cet4.txt中包含中文和英文
-
+对文件进行预处理 将txt文本分割为纯中文和纯英文，主要使用的是正则表达式
 """
 
-import jieba
 import re
-from gensim.models import Word2Vec
+import numpy as np
 
-# -----------------------------以下代码是为了将原文本的数据分割变为词组---------------
-# 使用jieba对内容进行切割
-# def extract_chinese_text(file_path):
-#     chinese_text = []
+
+# -----------------------------预处理文本，得到纯中英文没有符号---------------
+#  使用正则表达式对数据进行预处理,并将数据保存为以空格分割的字符串
+# def preprocess_text(file_path):
 #     with open(file_path, 'r', encoding='utf-8') as file:  # 以UTF-8的方式打开
+#         contents_of_txt = ""
 #         for line in file:  # 一行一行的读，一行就是文件中的一行
 #             line = line.strip()  # 每一行都去头去尾换行符，或者空格
+#             line = re.split("[ ,，;；.&]", line)  # 中英文字符都需要加进去分割内容
+#             line = " ".join(line) + '\n'  # 将每一行的字符串按照空格链接，且换行
 #             if line:
-#                 segments = jieba.lcut(line)  # 直接切割
-#                 # 没啥还是切割
-#                 chinese_segments = [seg for seg in segments if seg.isalpha()]
-#                 chinese_text.extend(chinese_segments)
-#     return chinese_text
+#                 contents_of_txt += line
+#         # 返回所有的字符串
+#         return contents_of_txt
 #
 #
-# # 保存切割的内容
-# def save_text_to_file(text, output_file):
-#     with open(output_file, 'w', encoding='utf-8') as file:
-#         for word in text:
-#             file.write(word + '\n')  # 保存文件
+# def save_text(file_path, contents_of_txt):
+#     with open(file_path, 'w', encoding='utf-8') as file:  # 以UTF-8的方式打开
+#         for line in contents_of_txt:  # 读取每一行
+#             file.write(line)  # 保存每一行
 #
 #
 # input_file_path = 'cet4.txt'  # 输入文件
 # output_file_path = 'cet4_chinese_EN.txt'  # 输出文件
 #
-# chinese_text = extract_chinese_text(input_file_path)
-# save_text_to_file(chinese_text, output_file_path)
+#
+# chinese_text = preprocess_text(input_file_path)  # 执行预处理操作
+# save_text(output_file_path, chinese_text)  # 执行保存文件操作
 
-# -----------------------------以下代码是为了去除文件中的非中文字，得到中文---------------
+# # -----------------------------以下代码是为了去除文件中的非中文字，得到中文---------------
 # print('主程序执行开始...')
 # input_file_name = 'cet4_chinese_EN.txt'
 # output_file_name = 'cet4_chinese.txt'
@@ -46,21 +45,21 @@ from gensim.models import Word2Vec
 # print('读入数据文件结束！')
 # print('分词程序执行开始...')
 # count = 1
-# cn_reg = '^[\u4e00-\u9fa5]+$'  # 去除英文
+# cn_reg = '^[\u4e00-\u9fa5]'  # 去除非中文字
 # for line in lines:
-#     line_list = line.split('\n')[0].split(' ')
-#     line_list_new = []
-#     for word in line_list:
-#         if re.search(cn_reg, word):
-#             line_list_new.append(word)
-#     output_file.write(' '.join(line_list_new) + '\n')
-#     count += 1
-#     if count % 10000 == 0:
-#         print('目前已分词%d条数据' % count)
+#     if line != '\n':
+#         line = line.strip()
+#         line_list = line.split('\n')[0].split(' ')
+#         line_list_new = []
+#         for word in line_list:
+#             if re.search(cn_reg, word):
+#                 line_list_new.append(word)
+#         output_file.write(' '.join(line_list_new) + '\n')
+#         count += 1
 # print('分词程序执行结束！')
 # print('主程序执行开始...')
 #
-# -----------------------------以下代码是为了去除文件中的中文字---------------
+# # -----------------------------以下代码是为了去除文件中的中文字---------------
 # input_file_name = 'cet4_chinese_EN.txt'
 # output_file_name = 'cet4_english.txt'
 # input_file = open(input_file_name, 'r', encoding='utf-8')
@@ -70,77 +69,30 @@ from gensim.models import Word2Vec
 # print('读入数据文件结束！')
 # print('分词程序执行开始...')
 # count = 1
-# cn_reg = '[^\u4e00-\u9fa5]+$'  # 去除中文
+# cn_reg_en = r'\b[a-zA-Z]+\b|^( | ^|)^⋯'
+# cn_reg = r'[\u4e00-\u9fa5]'
 # for line in lines:
-#     line_list = line.split('\n')[0].split(' ')
-#     line_list_new = []
-#     for word in line_list:
-#         if re.search(cn_reg, word):
-#             line_list_new.append(word)
-#     output_file.write(' '.join(line_list_new) + '\n')
-#     count += 1
-#     if count % 10000 == 0:
-#         print('目前已分词%d条数据' % count)
+#     if line != '\n':
+#         line = line.strip()
+#         line_list = line.split('\n')[0].split(' ')
+#         line_list_new = []
+#         for word in line_list:
+#             if re.search(cn_reg_en, word):
+#                 if not re.search(cn_reg, word):
+#                     line_list_new.append(word)
+#         output_file.write(' '.join(line_list_new) + '\n')
+#         count += 1
 # print('分词程序执行结束！')
-
-# -----------------------------以下代码是为了去除文件中空行---------------
-# def extract_english_text(file_path):
-#     english_text = []
-#     with open(file_path, 'r', encoding='utf-8') as file:
-#         for line in file:
-#             line = line.strip()
-#             if line:
-#                 # Modify the line as needed
-#                 line = line.replace('old', 'new')
-#                 segments = jieba.lcut(line)
-#                 english_text.extend(segments)
-#
-#     return english_text
-#
-#
-# def save_text_to_file(text, output_file):
-#     with open(output_file, 'w', encoding='utf-8') as file:
-#         file.write('\n'.join(text))
-#
-#
-# file_path = 'cet4_chinese.txt'
-# output_file = 'output_cet4_chinese.txt'
-#
-# english_text = extract_english_text(file_path)
-# save_text_to_file(english_text, output_file)
-#
-# -----------------------------以下代码是为了去除英文文件中空行---------------
-# def extract_english_text(file_path):
-#     english_text = []
-#     with open(file_path, 'r') as file:
-#         for line in file:
-#             line = line.strip()
-#             if line:
-#                 # Modify the line as needed
-#                 line = line.replace('old', 'new')
-#                 segments = jieba.lcut(line)
-#                 english_text.extend(segments)
-#
-#     return english_text
-#
-#
-# def save_text_to_file(text, output_file):
-#     with open(output_file, 'w') as file:
-#         file.write('\n'.join(text))
+# print('主程序执行开始...')
 
 
-# file_path = 'cet4_english.txt'
-# output_file = 'output_cet4_english.txt'
-#
-# english_text = extract_english_text(file_path)
-# save_text_to_file(english_text, output_file)
-
-# -----------------------------以下代码是为了去除英文文件中空行---------------
-# import multiprocessing
-# from gensim.models.word2vec import LineSentence
+# -----------------------------以下代码是为了将中文转化为向量,并保存为模型---------------
+import multiprocessing
+from gensim.models.word2vec import LineSentence
+from gensim.models import Word2Vec
 #
 # print('主程序开始执行...')
-# input_file_name = 'output_cet4_chinese.txt'
+# input_file_name = 'cet4_chinese.txt'
 # model_file_name = 'cet4_chinese_vector.model'
 # print('转换过程开始...')
 # model = Word2Vec(LineSentence(input_file_name),
@@ -152,6 +104,16 @@ from gensim.models import Word2Vec
 # model.save(model_file_name)
 # print('模型保存结束！')
 # print('主程序执行结束！')
+
+# -----------------------------以下代码是为了查看模型的结果，以及数量---------------
+# chinese_model = Word2Vec.load("cet4_chinese_vector.model")
+# print(chinese_model.wv.index_to_key)
+# count = 0
+# for word in chinese_model.wv.index_to_key:
+#     count += 1
+#     print(word, chinese_model.wv[word])
+# print(count)
+
 
 
 
