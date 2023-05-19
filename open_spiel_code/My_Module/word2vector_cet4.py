@@ -1,11 +1,11 @@
 """
 对文件进行预处理 将txt文本分割为纯中文和纯英文，主要使用的是正则表达式
+将所有的中英文一一对应，生成所有的中英文对象向量表，到此神经网络的输入得到了
 """
-
+import json
 import re
 import numpy as np
-
-
+from word_two_vector.word2vector import get_phonetic_components
 # -----------------------------预处理文本，得到纯中英文没有符号---------------
 #  使用正则表达式对数据进行预处理,并将数据保存为以空格分割的字符串
 # def preprocess_text(file_path):
@@ -90,6 +90,7 @@ import numpy as np
 import multiprocessing
 from gensim.models.word2vec import LineSentence
 from gensim.models import Word2Vec
+
 #
 # print('主程序开始执行...')
 # input_file_name = 'cet4_chinese.txt'
@@ -113,6 +114,49 @@ from gensim.models import Word2Vec
 #     count += 1
 #     print(word, chinese_model.wv[word])
 # print(count)
+
+# -----------------------------将中文和英文组合为字典的形式，这样汉语和英文的对应就不用自己找了---------------
+# file_path = "cet4_chinese_EN.txt"
+# output_cn_en = "cet4_chinese_EN_121.txt"
+# output_cn_en_file = open(output_cn_en, 'w', encoding='utf-8')
+# word_list = {}
+# with open(file_path, 'r', encoding='utf-8') as file:  # 以UTF-8的方式打开
+#     for line in file:  # 一行一行的读，一行就是文件中的一行
+#         line = line.strip()  # 每一行都去头去尾换行符，或者空格
+#         word_split_list = line.split(' ')
+#         for chinese in word_split_list[1:]:
+#             if '\u4e00' < chinese < '\u9fff':
+#                 # cmu_phonemes, ipa_phonemes = get_phonetic_components(line.split(' ')[0])
+#                 output_cn_en_file.write(word_split_list[0] + ' ' + chinese + '\n')
+#                 break
+
+
+# --------------------测试所有的单词有没有发音转化为向量，以及汉语可不可以转化为向量,最后生成神经网路的输入---------------
+# en_cn_dict = {}
+# cmu_phoneme_model = Word2Vec.load("phonetic_trained_vector.bin")  # 加载音标向量模型
+# chinese_model = Word2Vec.load("cet4_chinese_vector.model")  # 得到中文向量的模型
+# json_dic = {}
+# with open("cet4_chinese_EN_121.txt", 'r', encoding='utf-8') as file:  # 以UTF-8的方式打开
+#     for line in file:  # 一行一行的读，一行就是文件中的一行
+#         line = line.strip()  # 每一行都去头去尾换行符，或者空格
+#         word_split_list = line.split(' ')
+#         cmu_phonemes, ipa_phonemes = get_phonetic_components(word_split_list[0])
+#         # Load the pre-trained word2vec model 得到音标的向量
+#         cmu_phoneme_vector = np.array([cmu_phoneme_model.wv.get_vector(cmu_phoneme) for cmu_phoneme in cmu_phonemes])
+#         cmu_phoneme_one_D_vector = cmu_phoneme_vector.flatten()  # 得到一维的音标向量
+#         # print(cmu_phoneme_one_D_vector)
+#         chinese_vector = chinese_model.wv.get_vector(word_split_list[1])
+#         # print(chinese_vector.shape)
+#         # 得到神经网络的输入
+#         NN_input = np.concatenate((cmu_phoneme_one_D_vector, chinese_vector)).tolist()
+#         json_dic['chinese'] = word_split_list[1]
+#         json_dic['word'] = word_split_list[0]
+#         json_dic['phonetic'] = ipa_phonemes
+#         json_dic['input_vector'] = NN_input
+#         with open('nn_input.json', 'a', encoding='utf-8') as fw:
+#             json.dump(json_dic, fw, ensure_ascii=False)
+#             fw.write('\n')
+
 
 
 
