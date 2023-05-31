@@ -1,84 +1,11 @@
 """
-# 本次实验 是上次的维度*2得到的实验结果
-损失记录 500->1, 1000->0.4 1500->0.023, 2000->0.003, 2500->0.001, 3000->0.005 基本上最小值就是0.001，模型的复杂度为1，基本上在2000次就收敛了
-训练次数3000 
+经验1: 原文件不要有一词多义，目标文件中不要有特殊字符还有大小写文件
+经验2：搞明白mask，和attention是怎么做的
+经验3：在任何网络中都不要dropout，故意过拟合，有dropout会减低收敛的速度
+经验4：增加维度可以加速收敛，时间稍微增加一点点，大概5分钟,目前来看这个设置是最好的
 BATCH_SIZE = 24
-tecaher=0.5
-clip = 1 
-ENC_EMB_DIM = 16
-DEC_EMB_DIM = 16
-ENC_HID_DIM = 32
-DEC_HID_DIM = 32
-ATTN_DIM = 4
-ENC_DROPOUT = 0.0
-DEC_DROPOUT = 0.0
-1: 增加维度有利于收敛 2: teacher focus的效果? 3:dropout的效果?
-
-# 第二次实验 将第一次实验结果的参数的teacher focus改为1，实验证明将teacher focus改为1（直接用真实值训练）收敛的好像更快一点
-损失记录 500->0.5, 1000->0.03 1500->0.001, 后面没有再训练，基本上提前至少500次到达了0.001
-训练次数3000 
-BATCH_SIZE = 24
-tecaher=1
-clip = 1 
-ENC_EMB_DIM = 16
-DEC_EMB_DIM = 16
-ENC_HID_DIM = 32
-DEC_HID_DIM = 32
-ATTN_DIM = 4
-ENC_DROPOUT = 0.0
-DEC_DROPOUT = 0.0
-1: 增加维度有利于收敛 2: teacher focus的效果，如果直接用真实值训练，那么提前500轮达到了收敛 3:dropout的效果?
-
-# 第三次实验 将第二次实验结果的参数的dropout从0改为0.5，基本上和第一次实验差不多 实验证明有dropout收敛的很慢
-损失记录 500->0.9, 1000->0.2 1500->0.023, 后面没有再训练，基本上提前至少500次到达了0.001
-训练次数3000 
-BATCH_SIZE = 24
-tecaher=1
-clip = 1 
-ENC_EMB_DIM = 16
-DEC_EMB_DIM = 16
-ENC_HID_DIM = 32
-DEC_HID_DIM = 32
-ATTN_DIM = 4
-ENC_DROPOUT = 0.5
-DEC_DROPOUT = 0.5
-1: 增加维度有利于收敛 2: teacher focus的效果，如果直接用真实值训练，那么提前500轮达到了收敛 3:dropout的效果，有dropout收敛的很慢
-
-# 第4次实验 再次增加一倍的维度，收敛速度更快了
-损失记录 500->0.1, 1000->0.002 1091次达到了0.001最小值，模型收敛
-训练次数3000 
-BATCH_SIZE = 24
-tecaher=1
-clip = 1 
-ENC_EMB_DIM = 32
-DEC_EMB_DIM = 32
-ENC_HID_DIM = 64
-DEC_HID_DIM = 64
-ATTN_DIM = 8
-ENC_DROPOUT = 0.0
-DEC_DROPOUT = 0.0
-1: 增加维度有利于收敛 2: teacher focus的效果，如果直接用真实值训练，那么提前500轮达到了收敛 3:dropout的效果，有dropout收敛的很慢
-# 第5次实验 再次增加一倍的维度，收敛速度更快了,快了3倍，但是模型训练速度明显慢了很多也不是很慢
-损失记录 160->0.1, 250->0.01 520次达到了0.001最小值，模型收敛，又加速了很多
-训练次数3000 
-BATCH_SIZE = 24
-tecaher=1
-clip = 1 
-ENC_EMB_DIM = 64
-DEC_EMB_DIM = 64
-ENC_HID_DIM = 128
-DEC_HID_DIM = 128
-ATTN_DIM = 16
-ENC_DROPOUT = 0.0
-DEC_DROPOUT = 0.0
-
-1: 增加维度有利于收敛 2: teacher focus的效果，如果直接用真实值训练，那么提前500轮达到了收敛 3:dropout的效果，有dropout收敛的很慢
-# 第6次实验 再次增加一倍的维度
-损失记录 39->1, 86->0.1 120->0.01 240次达到了0.001最小值，模型收敛，又加速了很多,训练时间的话平均一秒一次，也差不多4分钟
-训练次数3000 
-BATCH_SIZE = 24
-tecaher=1
-clip = 1 
+teacher focus=1
+clip = 1
 ENC_EMB_DIM = 128
 DEC_EMB_DIM = 128
 ENC_HID_DIM = 256
@@ -86,21 +13,13 @@ DEC_HID_DIM = 256
 ATTN_DIM = 32
 ENC_DROPOUT = 0.0
 DEC_DROPOUT = 0.0
-
-1: 增加维度有利于收敛 2: teacher focus的效果，如果直接用真实值训练，那么提前500轮达到了收敛 3:dropout的效果，有dropout收敛的很慢
-1: 增加维度有利于收敛 2: teacher focus的效果，如果直接用真实值训练，那么提前500轮达到了收敛 3:dropout的效果，有dropout收敛的很慢
-# 第7次实验 试试增加一倍的batch 48，收敛的比第六次实验慢了
-损失记录 57->1, 140->0.1 120->0.01
-# 第8次实验 减少一倍的batch 12，两秒一个epoch，比第六次实验收敛的还要快，，但是时间翻倍了，仅仅使得循环次数减少，并没有很大程度上改变收敛速度
-# 从时间来看，减少batch_size没必要，需要4分钟，和第六次实验需要的时间差不多
-损失记录 24->1, 49->0.1 77->0.01   127->0.001
-
+经验5：teacher focus设置为1可以加快收敛速度
+经验6：模型损失最小是0.001，模型复杂度最小是1.001
+经验7：关于增加汉语权重那块，0.95：0.05最好，可以减低预测的准确性
+经验8：增加和减少batch在训练时间上影响不大所以没必要改变
+经验9：一定不能shuffle数据，在正确率和准确率上提高的太多可以达到30%
 """
-"""
-1: 源文件中存在特殊字符还有大小写，现在目标文件全是小写，以及输入文件没有重复意思的汉字
-3：保存和加载模型
-
-"""
+import random
 import torch
 from torchtext.data.utils import get_tokenizer
 from collections import Counter
@@ -108,13 +27,13 @@ from torchtext.vocab import vocab
 import io
 import matplotlib.pyplot as plt
 
-# ---------------------首先做数据预处理的工作，这里肯定不涉及保存模型参数，所以不管模型怎么保存，都需要做数据预处理-----------------------
-# random.seed(1)  # 随机数种子
+# ---------------------首先做数据预处理的工作，不涉及保存模型参数，都需要做数据预处理-----------------------
+# random.seed(1)  # 随机数种子，为了shuffle数据，但是最终放弃了，因为会提高模型的预测准确率
 chinese_tokenizer = get_tokenizer(None)  # None代表以空格作为分词器
 english_tokenizer = get_tokenizer(None)  # None代表以空格作为分词器
 
-chinese_file_path = 'cet4_chinese_phonetic.txt'  # 中文和音标文件，以空格分割
-english_file_path = 'cet4_letter.txt'  # 英文拼写文件
+chinese_file_path = 'cet4_chinese_phonetic.txt'  # 中文和音标文件，以空格分割 原文件
+english_file_path = 'cet4_letter.txt'  # 英文拼写文件 目标文件
 
 
 # 建立词库 return {word:index}
@@ -132,12 +51,10 @@ english_vocab = build_vocab(english_file_path, english_tokenizer)  # {word:index
 
 # print(len(chinese_vocab.get_stoi()))  # 查看文件中的{word:index}
 # print(english_vocab.get_stoi())
+split_rate = 0.7  # 分割训练数据和测试数据的比例 一共3684个单词
 
 
-split_rate = 0.1  # 分割训练数据和测试数据的比例
-
-
-# 将文件中的每一句话都变为数字，这里还不管标识符,将训练集和测试集合分开，按照比例分开
+# 将文件中的每一句话都变为数字，这里还不管标识符,将训练集和测试集合分开，按照比例分开 sklearn
 def data_process(filepaths, split_rate):
     raw_chinese_iter = iter(io.open(filepaths[0], encoding="utf8"))  # 返回一个迭代器
     raw_english_iter = iter(io.open(filepaths[1], encoding="utf8"))
@@ -160,7 +77,7 @@ train_data, test_data = data_process(train_filepaths, split_rate=split_rate)  # 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # 用什么设备运行
 
-BATCH_SIZE = 24  # batch size
+BATCH_SIZE = 24  # batch size,已经测试过，不影响
 PAD_IDX = chinese_vocab['<pad>']  # 获得padding的索引 1，虽然batch输入的长度不一样，但是按照一个batch中的最大长度对齐输入文本
 BOS_IDX = chinese_vocab['<bos>']  # 获得开始的字符2
 EOS_IDX = chinese_vocab['<eos>']  # 获得结束的字符3
@@ -187,7 +104,7 @@ train_iter = DataLoader(train_data, batch_size=BATCH_SIZE,
                         shuffle=True, collate_fn=generate_batch)
 test_iter = DataLoader(test_data, batch_size=BATCH_SIZE,
                        shuffle=True, collate_fn=generate_batch)
-
+# 查看训练集和测试集
 # for a, b, in train_iter:
 #     print(a.shape)
 #     print(b)
@@ -201,18 +118,13 @@ import torch.nn.functional as F
 from torch import Tensor
 import math
 
-teacher_focus_ratio = 0.5  # 多大概率拿答案训练模型
-
-
-# 设置一个掩码器，掩盖attention，可以在attention上掩盖(掩盖维度)，也可以在attention加之后再掩盖(直接掩盖权重)
-def generate_attention_mask(batch_size, time_step, attention_dim):
-    # 生成对角阵，在我的例子下面，掩盖的越小训练的越快越好，设置-1比1好
-    return torch.triu(torch.ones(batch_size, time_step, attention_dim), diagonal=-1)
+chinese_weight = 0.95
+phoneme_weight = 0.05
 
 
 # 定义位置编码，记录word之间的相对位置 max_len代表了时间步长，只是因为每个batch都变长，所以直接设置一个最大值，然后到时候再切割
 class PositionalEncoding(nn.Module):
-    def __init__(self, embedding_dim: int, dropout: float = 0.1, max_len: int = 500):
+    def __init__(self, embedding_dim: int, dropout: float = 0.0, max_len: int = 500):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
         position = torch.arange(max_len).unsqueeze(1)
@@ -229,7 +141,7 @@ class PositionalEncoding(nn.Module):
         return x
 
 
-# 设置编码器
+# 设置编码器，可以不用dropout,试试单链
 class Encoder(nn.Module):
     def __init__(self,
                  input_dim: int,  # 源语言的词表长度
@@ -253,16 +165,16 @@ class Encoder(nn.Module):
 
     # 所以这里的forward是一步输入
     def forward(self, src: Tensor):  # 这里输入的tensor是[time_dim,batch_size]
-        embedded = self.embedding(src)  # [time_dim,batch_size,emb_dim] [34, 128, 32]
+        embedded = self.embedding(src)  # [time_dim,batch_size,emb_dim]
         # 将第二个维度的第一行代表汉语乘以权重，提高汉语的比重
-        embedded[:, 0, :] *= 0.95
+        embedded[:, 0, :] *= chinese_weight
         # 将第二个维度的剩余行代表音标乘以权重，降低音标的比重
-        embedded[:, 1:, :] *= 0.05
+        embedded[:, 1:, :] *= phoneme_weight
         # 在位置信息加上去之前，将汉语和音标的权重设定为固定值
         position_encoding_embedded = self.position_encoding(embedded)  # 将位置信息加上去
         # [num_layers * num_directions, batch_size, encoder_hidden_size]
         # hidden的最后一层的输出保存了time_dim的所有信息,所以输出只有# [num_layers * num_directions，batch_size, encoder_hidden_size]
-        outputs, hidden = self.rnn(position_encoding_embedded)  # hidden_shape: torch.Size([2, 128, 64])由两层每一层有64个节点
+        outputs, hidden = self.rnn(position_encoding_embedded)
         # -2和-1是为了得到双向网络的最后一层的状态，并且合并所以得到的维度是 [batch_size, encoder_hidden_size*2]
         # 也就是说将输入的源语言映射到了新的维度上，所以说整个就是将输入的时间步长重新映射到了隐藏层上，这个结果叫做context
         # hidden_shape: torch.Size([128, 64]) # 本来双链RNN链接以后是128后来经过全连接层变成了64位也就是和decoder层一样的隐藏层节点数
@@ -283,19 +195,23 @@ class Attention(nn.Module):
         self.attn_in = (enc_hid_dim * 2) + dec_hid_dim
         self.attn = nn.Linear(self.attn_in, attn_dim)  # 要将（value，query）做一个映射得到其相关关系
 
-    # encoder_output是真的获得了encoder的输出值，shape为torch.Size([32, 128, 128]) [time_dim,batch_size,encoder_dim*2]
+    # 设置一个掩码器，掩盖attention，可以在attention上掩盖(掩盖维度)，也可以在attention加之后再掩盖(直接掩盖权重)
+    # def generate_attention_mask(self, batch_size, time_step):
+    #     # 生成对角阵，在我的例子下面，掩盖的越小训练的越快越好，设置-1比1好
+    #     return torch.triu(torch.ones(batch_size, time_step), diagonal=-1)
+
+    # encoder_output是真的获得了encoder的输出值，shape为torch.Size [time_dim,batch_size,encoder_dim*2]
     def forward(self, decoder_hidden: Tensor, encoder_outputs: Tensor) -> Tensor:
         src_len = encoder_outputs.shape[0]  # 获得时间步的大小
-        # 对（query）复制，方便直接应用与value的时间步长相同 torch.Size([128, 32, 64])  [batch_size, time_dim, dec_hid_dim]
+        # 对（query）复制，方便直接应用与value的时间步长相同 torch.Size  [batch_size, time_dim, dec_hid_dim]
         repeated_decoder_hidden = decoder_hidden.unsqueeze(1).repeat(1, src_len, 1)
         encoder_outputs = encoder_outputs.permute(1, 0, 2)  # 将batch_size放到第一个维度[batch_size,time_dim, encoder_dim*2]
-        # torch.Size([128, 32, 8]) energy的tensor
+        # torch.Size([batch_size, time_dim, attention_dim]) energy的tensor
         energy = torch.tanh(self.attn(torch.cat((repeated_decoder_hidden, encoder_outputs), dim=2)))  # 得到了注意力的值
-        # 直接加个mask让注意力更加集中于某一个value附近
-        mask = generate_attention_mask(energy.shape[0], energy.shape[1],
-                                       energy.shape[2])  # [batch_size,time_dim,attention_out_dim]
-        masked_energy = energy * mask  # 可以掩盖维度，也可以掩盖权重 看情况
-        attention = torch.sum(masked_energy, dim=2)  # attention: torch.Size([128, 32]) [batch_size, time_step]
+        # 直接加个mask让注意力更加集中于某一个value附近  [batch_size,time_dim,attention_out_dim]
+        # mask = self.generate_attention_mask(energy.shape[0], energy.shape[1])
+        # masked_energy = mask * energy  # 可以掩盖维度，也可以掩盖权重 看情况
+        attention = torch.sum(energy, dim=2)  # attention: torch.Size [batch_size, time_step]
         # 返回的是每一个时间步的权重
         return F.softmax(attention, dim=1)
 
@@ -317,7 +233,6 @@ class Decoder(nn.Module):
         self.output_dim = output_dim
         self.dropout = dropout
         self.attention = attention
-
         self.embedding = nn.Embedding(output_dim, emb_dim)  # 因为预测的输出是输入，所以也需要编码，并于attention的维度拼接
         self.rnn = nn.GRU((enc_hid_dim * 2) + emb_dim, dec_hid_dim)  # attention_dime + emd_dim
         self.out = nn.Linear(self.attention.attn_in + emb_dim, output_dim)  # output, hidden(quary)
@@ -340,9 +255,9 @@ class Decoder(nn.Module):
                 input: Tensor,
                 decoder_hidden,  # 这个是encoder的hidden的tensor
                 encoder_outputs: Tensor):
-        input = input.unsqueeze(0)  # input_shape torch.Size([1, 128])  [1, batch_size]
+        input = input.unsqueeze(0)  # input_shape torch.Size  [1, batch_size]
         embedded = self.dropout(
-            self.embedding(input))  # embedded_shape torch.Size([1, 128, 32]) [1, batch_size,emd_dim]
+            self.embedding(input))  # embedded_shape torch.Size [1, batch_size,emd_dim]
         # weighted_encoder_rep_shape torch.Size([1, 128, 128]),quary与那个time_dim更接近
         weighted_encoder_rep = self._weighted_encoder_rep(decoder_hidden,
                                                           encoder_outputs)
@@ -377,7 +292,7 @@ class Seq2Seq(nn.Module):
     def forward(self,
                 src: Tensor,
                 trg: Tensor,
-                teacher_forcing_ratio: float = teacher_focus_ratio) -> Tensor:
+                teacher_forcing_ratio: float = 1) -> Tensor:
         batch_size = src.shape[1]  # 获得batch的大小 [time_dim,batch_size]
         max_len = trg.shape[0]  # 获得目标的输出长度 [time_dim,batch_size]
         trg_vocab_size = self.decoder.output_dim  # 获得目标语言的词表大小
@@ -385,8 +300,8 @@ class Seq2Seq(nn.Module):
 
         encoder_outputs, hidden = self.encoder(src)  # value，第一个query
 
-        # first input to the decoder is the <sos> token，target的时间步长的第一步总是sos，所以直接获得就可以
-        output = trg[0, :]  # 其实就是batch的大小128
+        # first input to the decoder is the <sos> token，target的时间步长的第一步总是dos，所以直接获得就可以
+        output = trg[0, :]  # 其实就是batch的大小
         for t in range(1, max_len):
             output, hidden = self.decoder(output, hidden, encoder_outputs)
             outputs[t] = output  # 将预测结果保存起来
@@ -436,9 +351,6 @@ def init_weights(m: nn.Module):
 model.apply(init_weights)
 optimizer = optim.Adam(model.parameters())  # 使用adam优化器
 criterion = nn.CrossEntropyLoss(ignore_index=PAD_IDX)  # 计算交叉熵的时候，不计算补齐的数，计算损失函数
-# 查看所有超参数的名字和维度，是个字典
-for param_tensor in model.state_dict():
-    print(param_tensor, "\t", model.state_dict()[param_tensor].size())
 
 
 # 统计需要训练多少个超参数
@@ -515,15 +427,15 @@ def train(model: nn.Module,
         optimizer.step()  # 优化器计算
         epoch_loss += loss.item()  # 将每一个batch的平均损失相加
     # 每一个epoch结束了输出预测单词和真实单词
-    for a in zip(predicted_words_list, real_words_list):
-        print(a)
+    # for a in zip(predicted_words_list, real_words_list):
+    #     print(a)
     avg_accuracy = sum(accuracy) / len(accuracy)  # 返回平均准确率
     avg_completeness = sum(completeness) / len(completeness)  # 返回平均拼写完整度
     print('训练数据预测准确度', sum(accuracy) / len(accuracy))
     print('训练数据预测完整度', sum(completeness) / len(completeness))
-    print('训练数据完全拼写正确的比例', number_correct_spelling/len(accuracy))
+    print('训练数据完全拼写正确的比例', number_correct_spelling / len(accuracy))
     # 返回整个数据集的平均损失
-    return epoch_loss / len(iterator), avg_accuracy, avg_completeness, number_correct_spelling/len(accuracy)
+    return epoch_loss / len(iterator), avg_accuracy, avg_completeness, number_correct_spelling / len(accuracy)
 
 
 # 和训练函数一模一样，除了不计算梯度，所以没有优化器，也没有clip
@@ -566,8 +478,8 @@ def evaluate(model: nn.Module,
                     elif sequence_words not in ['<unk>', '<pad>', '<bos>']:
                         real_words.append(sequence_words)  # 得到每一行的预测值
                 real_words_list.append(real_words)  # 一个batch的真实结果
-            for a in zip(predicted_words_list, real_words_list):
-                print(a)
+            # for a in zip(predicted_words_list, real_words_list):
+            #     print(a)
             # 拼接单词，开始计算准确度和完整度
             for pred, real in zip(predicted_words_list, real_words_list):  # 得到预测和真实的列表
                 pred_spelling = ''
@@ -590,8 +502,10 @@ def evaluate(model: nn.Module,
         # 返回准确率
         avg_accuracy = sum(accuracy) / len(accuracy)
         avg_completeness = sum(completeness) / len(completeness)
-        return epoch_loss / len(iterator), avg_accuracy, avg_completeness, number_correct_spelling/len(iterator)
+        return epoch_loss / len(iterator), avg_accuracy, avg_completeness, number_correct_spelling / len(accuracy)
 
+
+# --------------------------------------------执行训练-------------------------------------------------------------------
 
 import time
 
@@ -604,11 +518,11 @@ def epoch_time(start_time: int, end_time: int):
     return elapsed_mins, elapsed_secs
 
 
-N_EPOCHS = 10
+N_EPOCHS = 1000
 CLIP = 1
 
-best_valid_loss = float(0.01)  # 控制损失到多少结束
-avg_accuracy_threshold = 0.98  # 用准确度来控制模型什么时候结束
+best_valid_loss = float('-inf')  # 控制损失到多少结束
+avg_accuracy_threshold = 0.99  # 用准确度来控制模型什么时候结束
 avg_correct_spelling_threshold = 0.96  # 用准确度来控制模型什么时候结束
 train_lost_list = []  # 保存每个epoch的损失
 avg_accuracy_list = []  # 保存每个epoch的损失
@@ -616,7 +530,8 @@ avg_completeness_list = []  # 保存每个epoch的损失
 number_of_correct_spelling_list = []  # 完全拼写正确的单词比例
 for epoch in range(N_EPOCHS):
     start_time = time.time()
-    train_loss, avg_accuracy, avg_completeness, ratio_of_correct_spelling = train(model, train_iter, optimizer, criterion, CLIP)
+    train_loss, avg_accuracy, avg_completeness, ratio_of_correct_spelling = train(model, train_iter, optimizer,
+                                                                                  criterion, CLIP)
     train_lost_list.append(train_loss)  # 保存损失
     avg_accuracy_list.append(avg_accuracy)  # 保存准确度
     avg_completeness_list.append(avg_completeness)  # 保存准确度
@@ -626,48 +541,83 @@ for epoch in range(N_EPOCHS):
     print(f'Epoch: {epoch + 1:02} | Time: {epoch_mins}m {epoch_secs}s')
     # 模型复杂度就是损失的指数函数，是判断模型好坏的一个标准，当前越小越好
     print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
-    if train_loss <= best_valid_loss:  # 如果已经到了最小值直接结束
-        break
-    elif avg_accuracy >= avg_accuracy_threshold:  # 预测准确度控制循环
-        break
-    elif ratio_of_correct_spelling > avg_correct_spelling_threshold:
+    # if train_loss <= best_valid_loss:  # 根据损失判断模型什么时候结束，损失在我这没啥用
+    #     break
+    if ratio_of_correct_spelling > avg_correct_spelling_threshold:  # 预测准确度控制循环，完全拼写正确的概率非常重要
         break
 
+# -------------------------------------------------- 达到结束标准后 保存模型----------------------------------------
+torch.save({
+    'epoch': epoch,
+    'model_state_dict': model.state_dict(),
+    'encoder_state_dict': enc.state_dict(),
+    'attention_state_dict': attn.state_dict(),
+    'decoder_state_dict': dec.state_dict(),
+    'optimizer_state_dict': optimizer.state_dict(),
+    'loss': train_loss,
+    'split_rate': split_rate,
+    'batch_size': BATCH_SIZE,
+    'chinese_weight': chinese_weight,
+    'phoneme_weight': phoneme_weight,
+    'ENC_EMB_DIM': ENC_EMB_DIM,
+    'DEC_EMB_DIM': DEC_EMB_DIM,
+    'ENC_HID_DIM': ENC_HID_DIM,
+    'DEC_HID_DIM': DEC_HID_DIM,
+    'ATTN_DIM': ATTN_DIM,
+    'ENC_DROPOUT': ENC_DROPOUT,
+    'DEC_DROPOUT': DEC_DROPOUT,
+    'CLIP': CLIP,
+}, 'model_parameters/model_parameters_0.7.pt')
 
 # 在这对损失做个图
 fig, axs = plt.subplots(2, 3)
+fig.subplots_adjust(hspace=0.7, wspace=0.7)
 axs[0, 0].plot(train_lost_list, 'b', label='avg_loss')  # 每个epoch的平均损失
-plt.ylabel('avg_loss')
-plt.xlabel('epoch')
+loss_x = epoch  # 最后一个点的坐标
+loss_y = round(train_lost_list[-1], 3)  # 最后一个epoch
+axs[0, 0].text(loss_x, loss_y, f'({loss_x}, {loss_y})',
+               fontsize=10, color='red', ha='center', va='bottom')
+axs[0, 0].set_ylabel('avg_loss')
+axs[0, 0].set_xlabel('epoch')
 
 ppl_list = [math.exp(train_loss) for train_loss in train_lost_list]
-plt.figure()
 axs[0, 1].plot(ppl_list, 'r', label='avg_ppl')
-plt.ylabel('avg_ppl')
-plt.xlabel('epoch')
+ppl_x = epoch  # 最后一个点的坐标
+ppl_y = round(ppl_list[-1], 3)  # 最后一个epoch
+axs[0, 1].text(ppl_x, ppl_y, f'({ppl_x}, {ppl_y})',
+               fontsize=10, color='red', ha='center', va='bottom')
+axs[0, 1].set_ylabel('avg_ppl')
+axs[0, 1].set_xlabel('epoch')
 
 axs[1, 0].plot(avg_accuracy_list, 'r', label='avg_accuracy')
-plt.ylabel('accuracy')
-plt.xlabel('epoch')
+avg_accuracy_x = epoch  # 最后一个点的坐标
+avg_accuracy_y = round(avg_accuracy_list[-1], 3)  # 最后一个epoch
+axs[1, 0].text(avg_accuracy_x, avg_accuracy_y, f'({avg_accuracy_x}, {avg_accuracy_y})',
+               fontsize=10, color='red', ha='center', va='bottom')
+axs[1, 0].set_ylabel('accuracy')
+axs[1, 0].set_xlabel('epoch')
 
-plt.figure()
 axs[1, 1].plot(avg_completeness_list, 'r', label='avg_completeness')
-plt.ylabel('avg_completeness')
-plt.xlabel('epoch')
+avg_completeness_x = epoch  # 最后一个点的坐标
+avg_completeness_y = round(avg_completeness_list[-1], 3)  # 最后一个epoch
+axs[1, 1].text(avg_completeness_x, avg_completeness_y, f'({avg_completeness_x}, {avg_completeness_y})',
+               fontsize=10, color='red', ha='center', va='bottom')
+axs[1, 1].set_ylabel('avg_completeness')
+axs[1, 1].set_xlabel('epoch')
 
+axs[0, 2].plot(number_of_correct_spelling_list, 'r', label='correct_ratio')
+correct_ration_x = epoch  # 最后一个点的坐标
+correct_ration_y = round(number_of_correct_spelling_list[-1], 3) # 最后一个epoch
+axs[0, 2].text(correct_ration_x, correct_ration_y, f'({correct_ration_x}, {correct_ration_y})',
+               fontsize=10, color='red', ha='center', va='bottom')
+axs[0, 2].set_ylabel('correct_ratio')
+axs[0, 2].set_xlabel('epoch')
 
-plt.figure()
-axs[0, 2].plot(number_of_correct_spelling_list, 'r', label='avg_completeness')
-plt.ylabel('avg_completeness')
-plt.xlabel('epoch')
+fig.savefig("evaluation_pictures/evaluation_0.7.jpg")
 
-
-fig.savefig("evaluation.jpg")
-
-test_loss, test_avg_accuracy, test_avg_completeness, ratio_of_correct_spelling = evaluate(model, test_iter, criterion)  # 评估模型
-print(f'| 测试数据的损失: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
-print('测试数据的准确度', test_avg_accuracy)
-print('测试数据的完整度', test_avg_completeness)
-print('完全拼写正确的比例', ratio_of_correct_spelling)
-
-
+# --------------------------------------------执行测试程序-------------------------------------------------------------------
+test_loss, test_avg_accuracy, test_avg_completeness, ratio_of_correct_spelling = evaluate(model, test_iter,
+                                                                                          criterion)  # 评估模型
+print(f'| Test Loss: {test_loss:.3f} | Test PPL: {math.exp(test_loss):7.3f} |')
+print(
+    f'| Test Accuracy: {test_avg_accuracy:.3f} | Test Completeness: {test_avg_completeness:7.3f} | Test Correct Ratio: {ratio_of_correct_spelling:7.3f} |')
