@@ -1,34 +1,50 @@
 """
-能不能只预测结果，不管目标啊，sequence那里可以不可以修改？卡到一定的字母范围
-那么如何学习呢？ 如果将反馈的结果可以加到学生的经验当中呢？
+那么如何学习呢？ 如果将反馈的结果可以加到学生的经验当中呢？,怎么设计训练的问题，应该还是在权重上做文章，可能还涉及到继续训练的问题
+破解思路是让可能性最小的先选，或者取差集，选择其他的可能性
 """
 import torch
 from torchtext.data.utils import get_tokenizer
 import pickle
-from typing import List
+from typing import List, Dict
+
+
+# -------------------------------------------------自定义函数------------------------------------------------------------
+def custom_logical_operator(tensor1, tensor2):
+    results = []
+    for a, b in zip(tensor1, tensor2):
+        if a == float('inf'):  # 代表一个确定性的答案已经有了，一定选择它
+            results.append(float('inf'))
+        elif a == 0:  # 如果是负无穷，那么不管什么结果都是负无穷
+            results.append(0)
+        elif a == 1 and b == 1:
+            results.append(1)
+        elif a == 1 and b == 0:
+            results.append(0)
+    return torch.tensor(results).unsqueeze(0)
+
+
 # -------------------------------------------------加载词库--------------------------------------------------------------
 chinese_tokenizer = get_tokenizer(None)  # None代表以空格作为分词器
-english_tokenizer = get_tokenizer(None)  # None代表以空格作为分词器
 
 chinese_vocab_path = 'simulate_student/vocab/chinese_vocab.pkl'  # 中文词库路径
 english_vocab_path = 'simulate_student/vocab/english_vocab.pkl'  # 英文词库路径
-
 
 with open(chinese_vocab_path, 'rb') as f:
     chinese_vocab = pickle.load(f)  # download chinese vocab
 with open(english_vocab_path, 'rb') as f:
     english_vocab = pickle.load(f)  # down english vocab
 
-print(english_vocab.get_stoi()) # 可以得到字母对应的索引字典
+new_dict = {v: k for k, v in english_vocab.get_stoi().items()}  # [index, word]
+# print(english_vocab.get_stoi()) # {word:index}
+# print(new_dict)
+
+
 # convert token to index
 def data_process(chinese_phonetic):
     data = []
     chinese_tensor_ = torch.tensor([chinese_vocab[token] for token in chinese_tokenizer(chinese_phonetic)],
                                    dtype=torch.long)
-    # english_tensor_ = torch.tensor([english_vocab[token] for token in english_tokenizer(english)],
-    #                                dtype=torch.long)
-    # data.append((chinese_tensor_, english_tensor_))
-    data.append((chinese_tensor_))
+    data.append(chinese_tensor_)
     return data
 
 
@@ -47,29 +63,22 @@ from torch.utils.data import DataLoader
 
 #  加入首位开始和结束标识符，如果长度不匹配需要补1，最终返回嵌套列表
 def generate_batch(data_batch):
-    # chinese_batch, english_batch = [], []
     chinese_batch = []
     for chinese_item in data_batch:
         chinese_batch.append(torch.cat([torch.tensor([BOS_IDX]), chinese_item, torch.tensor([EOS_IDX])], dim=0))
-        # english_batch.append(torch.cat([torch.tensor([BOS_IDX]), letter_item, torch.tensor([EOS_IDX])], dim=0))
     chinese_batch = pad_sequence(chinese_batch)  # 每一个batch都按照了最长的time_step对齐了，[max_time_step,batch_size]
-    # english_batch = pad_sequence(english_batch, padding_value=PAD_IDX)  # 所以说每个batch的输入的time_dim不一样，但是一个batch中一定一样
-    # return chinese_batch, english_batch
     return chinese_batch
 
 
-BATCH_SIZE = 1  # 每次只拼写一个单词
-
 # ---------------------定义模型，也是模型中会保存的参数---------------------------------------------------------------------
 
-import random
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import math
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # define device
-checkpoint = torch.load('simulate_student/model_parameters/model_parameters_0.1.pt')  # 加载模型参数
+checkpoint = torch.load('simulate_student/model_parameters/model_parameters_0.1.pt')  # load model parameter
 
 
 # 定义位置编码，记录word之间的相对位置 max_len代表了时间步长，只是因为每个batch都变长，所以直接设置一个最大值，然后到时候再切割
@@ -233,27 +242,91 @@ class Seq2Seq(nn.Module):
         self.device = device
 
     # ----------------------------------------------拼写规则主要在这里修改-------------------------------------------------
-    def forward(self, src: Tensor, available_letter: List[str], target_length: int):
+    # mask 代表了学生的记忆 1:对固定的思维复制一个mask，如果前面的位置选择了一个字母，导致后面的位置没有可选字母则这个字母不合法
+    def forward(self, src: Tensor, available_letter: List[str], student_feedback: Dict[str, int], masks,
+                target_length: int):
         batch_size = src.shape[1]  # [time_dim,batch_size]
         trg_vocab_size = self.decoder.output_dim  # get the target vocab size
-        outputs = torch.zeros(target_length, batch_size, trg_vocab_size).to(self.device)  # [target length, trg_vocab_size]
+        outputs = torch.zeros(target_length, batch_size, trg_vocab_size).to(self.device)  # 多一行unk
         encoder_outputs, hidden = self.encoder(src)  # value，query
         output = src[0, :]  # 第一行永远是‘<unk>’
+
+        if masks is None:  # 初始化mask
+            masks = torch.zeros(target_length, batch_size, trg_vocab_size).to(self.device)
+            real_available_letter_index_list = []  # 存放可选字母的索引
+            for letter in available_letter:  # 循环每一个可选字母
+                real_available_letter_index_list.append(english_vocab.get_stoi()[letter])  # 得到了所有可能的结果
+            masks[1:, :, real_available_letter_index_list] = 1  # 1的个数就表示了该位置上的字母的可能性
+        else:
+            masks = masks  # 承接学生的记忆，然后根据反馈直接确定masks
+            for key, value in student_feedback.items():
+                current_letter = key.split('_')[0]  # 获得这个字母
+                current_index = key.split('_')[1]  # 获得这个字母对应拼写的位置
+                current_letter_index = english_vocab.get_stoi()[current_letter]  # 找到这个字母所在的索引
+                if value == 0:  # 红色
+                    masks[0:, :, current_letter_index] = 0  # 红色代表绝对不可能，这一列都变为0
+                elif value == 1:  # 黄色
+                    masks[int(current_index) + 1, :, current_letter_index] = 0  # 黄色代表这个位置不可能
+                elif value == 2:  # 绿色
+                    masks[int(current_index) + 1, :, :] = 0  # 绿色要把这一行都先标记为不可能
+                    masks[int(current_index) + 1, :, current_letter_index] = float('inf')  # 然后再把这个点标记为正无穷
+
+        available_letter_copy = available_letter.copy()  # 需要复制一份可用字母，不然会自动减少
+        masks_copy = masks.clone()  # 复制一份先验知识
+
         for t in range(1, target_length):  # 需要强制将其缩短为目标长度，不然特殊字符也会做预测
             available_letter_index_list = []  # 存放可选字母的索引
-            for letter in available_letter:  # 循环每一个可选字母
+            for letter in available_letter_copy:  # 循环每一个可选字母
                 available_letter_index_list.append(english_vocab.get_stoi()[letter])  # 得到了所有可能的结果
             # 创建一个对应索引的mask，可以接受的字母为1，没有的字母为0，如果字母一样怎么办呢？
-            output, hidden = self.decoder(output, hidden, encoder_outputs)
-            mask = torch.zeros((1, trg_vocab_size))  # 获得一个mask
-            mask[0, available_letter_index_list] = 1  # 将对应索引的位置改为1
-            output = output * mask  # 将mask和output相乘,得到只能接受的字母索引
-            outputs[t] = output  # 将预测结果保存起来
-            top1 = output.max(1)[1]  # 预测的最大可能性的输出结果
-            new_dict = {v: k for k, v in english_vocab.get_stoi().items()}
-            available_letter.remove(new_dict[top1.item()])  # 如果已经选择了某个字母则应该移除
+            output, hidden = self.decoder(output, hidden, encoder_outputs)  # 输入依旧是output
+            while True:
+                remaining_letters_set = set()  # 要保存一个列表，保存剩余的可选的字母集合
+                mask = torch.zeros((1, trg_vocab_size))  # 生成0的初始化tensor
+                mask[0, available_letter_index_list] = 1  # 真实可用的字母
+                real_mask = custom_logical_operator(masks[t, 0, :], mask[0, :])  # 代表了哪些字母可以被选择
+                indices = torch.where((real_mask[0, :] == 1) | torch.isposinf(real_mask[0, :]))[0].tolist()
+                print('可选择的索引是', indices)
+                print('可选择的字母是：', [new_dict[index] for index in indices])
+                output = output * real_mask  # 将mask和output相乘,得到只能接受的字母索引
+                outputs[t] = output  # 将预测结果保存起来
+                top1 = output.max(1)[1]  # 预测的最大可能性的输出结果
+                print('选择的字母是：', new_dict[top1.item()])
+                mask_copy_copy = masks_copy.clone()  # 复制一个改为0之前的mask矩阵
+                # 如果选中的该字母目前来看还重复，那么就没必要掩盖，否则的话全部掩盖
+                # 统计可选字母的重复字母
+                duplicated_letters = [x for x in set(available_letter_index_list) if
+                                      available_letter_index_list.count(x) >= 2]
+                if top1.item() not in duplicated_letters:
+                    masks_copy[t + 1:, :, top1.item()] = 0  # !！！！！ 这里没考虑重复字母有大问题
+
+                for i in range(t + 1, target_length):
+                    for j in range(masks_copy.size(1)):
+                        inner_tensor = masks_copy[i, j]
+                        print('剩余的tensor', inner_tensor)
+                        indices = torch.where((inner_tensor == 1) | torch.isposinf(inner_tensor))[0].tolist()
+                        for index in indices:
+                            remaining_letters_set.add(index)  # 保存了剩余可选字母的个数
+
+                # 统计mask以后该索引列还有多少可选择的位置
+                # duplicated_count = len([x for x in set(available_letter_index_list) if available_letter_index_list.count(x) >= 2])
+                print('剩余可选字母的长度是', (len(remaining_letters_set)), (target_length-(t+1)))
+                # print('剩余重复字母的个数', duplicated_count)
+                # 情况1：如果它本身是正无穷，以及它本身只有一个1可选，那么只能选择这个字母
+                if torch.isposinf(masks_copy[t, :, top1.item()]) or (
+                        torch.where(torch.eq(masks_copy[t, :, :], 1))[
+                            0].numel()) == 1:  # 如果它本身是正无穷以及它只有一个1， 必须选没有任何影响
+                    break
+                # !!!!!情况2：如果选择了它，1：抢了后面的唯一可选字母 2：可选元素的个数小于剩余位置个数，则要重新选择这里的条件有巨大的问题
+                elif [True for tensor in masks_copy[t + 1:] if torch.all(tensor == 0)] or (len(remaining_letters_set) < (target_length-(t+1))):
+                    print('把这个字母移除了：', new_dict[top1.item()])
+                    masks_copy = mask_copy_copy.clone()
+                    available_letter_index_list.remove(top1.item())
+                else:
+                    break
+            available_letter_copy.remove(new_dict[top1.item()])  # 如果已经选择了某个字母则应该移除
             output = top1  # 将预测结果作为下一轮的输入
-        return outputs
+        return outputs, masks, available_letter
 
 
 # # 初始化各种参数，这些参数也可以保存到checkpoint中
@@ -267,13 +340,11 @@ ATTN_DIM = checkpoint['ATTN_DIM']
 ENC_DROPOUT = checkpoint['ENC_DROPOUT']
 DEC_DROPOUT = checkpoint['DEC_DROPOUT']
 
-
 # # 以下都是实例化对象
 enc = Encoder(INPUT_DIM, ENC_EMB_DIM, ENC_HID_DIM, DEC_HID_DIM, ENC_DROPOUT)
 attn = Attention(ENC_HID_DIM, DEC_HID_DIM, ATTN_DIM)
 dec = Decoder(OUTPUT_DIM, DEC_EMB_DIM, ENC_HID_DIM, DEC_HID_DIM, DEC_DROPOUT, attn)
 model = Seq2Seq(enc, dec, device).to(device)
-
 
 # download parameters
 enc.load_state_dict(checkpoint['encoder_state_dict'])  # 加载encoder
@@ -286,12 +357,15 @@ model.load_state_dict(checkpoint['model_state_dict'])  # 加载model
 def evaluate(model: nn.Module,
              iterator: torch.utils.data.DataLoader,
              available_letter: List[str],
+             student_feedback: List[int],
+             masks,
              target_length):
     model.eval()  # evaluation mode
     with torch.no_grad():  # no grad
         for _, src in enumerate(iterator):  # simulate the student to see the chinese and phonetic
             src = src.to(device)  # set the device
-            output = model(src, available_letter, target_length)  # spell the word
+            output, masks, available_letter = model(src, available_letter, student_feedback, masks,
+                                                    target_length)  # spell the word
             predicted_outputs = output.permute(1, 0, 2)  # [batch_size, time_dim, vocab_length]
             # 本身就已经是二维[batch,time_step]
             predicted_indices = torch.argmax(predicted_outputs, dim=2)  # 最后一个维度是预测的概率，取最大值[batch_size, time_dim]
@@ -312,6 +386,4 @@ def evaluate(model: nn.Module,
                 for pred_letter in pred:
                     pred_spelling += pred_letter  # 得到预测拼写
                     pred_spelling += ' '  # 中间以空格分割
-        return pred_spelling
-
-
+        return pred_spelling, masks, available_letter
