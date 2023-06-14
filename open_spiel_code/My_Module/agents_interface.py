@@ -98,11 +98,6 @@ class TutorInterface(metaclass=abc.ABCMeta):
     #     pass
 
 
-# class StudentActionSpace(enum.IntEnum):
-#     a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z = \
-#         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
-
-
 class StudentInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __init__(self, chinese_phonetic: str, target_english: str, difficulty_setting: Dict[str, int]):
@@ -115,6 +110,7 @@ class StudentInterface(metaclass=abc.ABCMeta):
         self.target_length = len(target_english.replace(" ", ""))  # get the length of target english
         self.available_letter: List[str] = target_english.split(' ')
         self.confusing_letter: List[str] = []
+        self.masks = None
 
     @abc.abstractmethod
     def letter_space(self) -> List[str]:
@@ -122,25 +118,17 @@ class StudentInterface(metaclass=abc.ABCMeta):
             # 不管迷惑字母也不管可选择的字母，现在需要学生先给一个答案出来
             合法的动作包括：正确的拼写字母，迷惑字母，以及选择了一个动作以后，要将该字母从库中删除
             get legal actions from chance player
-            :return: list of legal actions [a,c,d,f,e,b,t,y]
+            :return: list of legal letters [a,c,d,f,e,b,t,y]
         """
         pass
 
     @abc.abstractmethod
-    def student_spelling(self) -> List[str]:
+    def student_spelling(self, student_feedback: List[int]) -> List[str]:
         """
         :return: student spelling
         """
         pass
 
-    # @property
-    # def get_word_length(self) -> int:
-    #     """
-    #         get word length from chance player
-    #         :return: word length
-    #     """
-    #     pass
-    #
     # @property
     # def get_total_attempts(self) -> int:
     #     """
@@ -170,14 +158,23 @@ class StudentInterface(metaclass=abc.ABCMeta):
 
 class ExaminerInterface(metaclass=abc.ABCMeta):
     """
-    1: examiner should get the correct spelling, and student spelling
-    2: examiner should mark students spelling
-    :return feedback： accuracy, completeness, red, green, yellow
-    """
+    input: students spelling, correct spelling
+
+        :return:  students feedback: {letter, color}
+                  tutor feedback: [accuracy, completeness, attempts,....]
+        """
+
+    def __init__(self):
+        """
+            initialize the student feedback, tutor feedback
+                """
+        self.student_feedback: Dict[str, int] = {}
+        self.tutor_feedback: List[float] = []
 
     @abc.abstractmethod
-    def give_feedback(self, student_spelling: str, correct_spelling: str):
+    def give_feedback(self, student_spelling: str, correct_spelling: str) -> Tuple[Dict[str, int], List[float]]:
         """
-        :return: feedback [GREEN, YELLOW, RED]
+        :return:  students feedback: {letter, color}
+                  tutor feedback: [accuracy, completeness, attempts,....]
         """
         pass
