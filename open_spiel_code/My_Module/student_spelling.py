@@ -2,24 +2,26 @@
 那么如何学习呢？ 如果将反馈的结果可以加到学生的经验当中呢？,怎么设计训练的问题，应该还是在权重上做文章，可能还涉及到继续训练的问题
 破解思路是让可能性最小的先选，或者取差集，选择其他的可能性
 """
+import random
+
+import numpy as np
 import torch
 from torchtext.data.utils import get_tokenizer
 import pickle
 from typing import List, Dict
-
+from collections import Counter
+import random
 
 # -------------------------------------------------自定义函数------------------------------------------------------------
 def custom_logical_operator(tensor1, tensor2):
     results = []
     for a, b in zip(tensor1, tensor2):
-        if a == float('inf'):  # 代表一个确定性的答案已经有了，一定选择它
-            results.append(float('inf'))
-        elif a == 0:  # 如果是负无穷，那么不管什么结果都是负无穷
+        if a == 0:  # 代表已经确定这个位置不可能是这个字母
             results.append(0)
-        elif a == 1 and b == 1:
+        elif a == 1 and b == 0:  # 代表虽然词库中这个字母还可选，但是当前这个位置不可能是这个字母
+            results.append(0)
+        elif a == 1 and b == 1:  # 代表了这个位置可能是这个字母，而且可以选择
             results.append(1)
-        elif a == 1 and b == 0:
-            results.append(0)
     return torch.tensor(results).unsqueeze(0)
 
 
@@ -35,6 +37,8 @@ with open(english_vocab_path, 'rb') as f:
     english_vocab = pickle.load(f)  # down english vocab
 
 new_dict = {v: k for k, v in english_vocab.get_stoi().items()}  # [index, word]
+
+
 # print(english_vocab.get_stoi()) # {word:index}
 # print(new_dict)
 
@@ -251,82 +255,69 @@ class Seq2Seq(nn.Module):
         encoder_outputs, hidden = self.encoder(src)  # value，query
         output = src[0, :]  # 第一行永远是‘<unk>’
 
-        if masks is None:  # 初始化mask
+        available_letter_index_list = []
+        for letter in available_letter:  # 循环每一个可选字母
+            available_letter_index_list.append(english_vocab.get_stoi()[letter])  # 得到了所有可能的结果
+        available_letter_index_counter = dict(Counter(available_letter_index_list))  # [word_index :counter]
+
+        if masks is None:  # 初始化一个masks
             masks = torch.zeros(target_length, batch_size, trg_vocab_size).to(self.device)
             real_available_letter_index_list = []  # 存放可选字母的索引
             for letter in available_letter:  # 循环每一个可选字母
                 real_available_letter_index_list.append(english_vocab.get_stoi()[letter])  # 得到了所有可能的结果
             masks[1:, :, real_available_letter_index_list] = 1  # 1的个数就表示了该位置上的字母的可能性
         else:
-            masks = masks  # 承接学生的记忆，然后根据反馈直接确定masks
+            masks = masks  # 承接上次的学生的记忆
             for key, value in student_feedback.items():
                 current_letter = key.split('_')[0]  # 获得这个字母
                 current_index = key.split('_')[1]  # 获得这个字母对应拼写的位置
                 current_letter_index = english_vocab.get_stoi()[current_letter]  # 找到这个字母所在的索引
+                # 然后根据反馈确定现在的先验知识
                 if value == 0:  # 红色
                     masks[0:, :, current_letter_index] = 0  # 红色代表绝对不可能，这一列都变为0
+                    available_letter_index_counter[current_letter_index] = 0  # red present counter = 0
                 elif value == 1:  # 黄色
                     masks[int(current_index) + 1, :, current_letter_index] = 0  # 黄色代表这个位置不可能
                 elif value == 2:  # 绿色
                     masks[int(current_index) + 1, :, :] = 0  # 绿色要把这一行都先标记为不可能
-                    masks[int(current_index) + 1, :, current_letter_index] = float('inf')  # 然后再把这个点标记为正无穷
-
-        available_letter_copy = available_letter.copy()  # 需要复制一份可用字母，不然会自动减少
-        masks_copy = masks.clone()  # 复制一份先验知识
+                    masks[int(current_index) + 1, :, current_letter_index] = 1  # 然后再把这个点标记为1
+                    available_letter_index_counter[current_letter_index] -= 1  # green present fixed
+        available_letter_index_copy = available_letter_index_counter.copy()  # 需要复制一份可用字母，不然会自动减少
 
         for t in range(1, target_length):  # 需要强制将其缩短为目标长度，不然特殊字符也会做预测
-            available_letter_index_list = []  # 存放可选字母的索引
-            for letter in available_letter_copy:  # 循环每一个可选字母
-                available_letter_index_list.append(english_vocab.get_stoi()[letter])  # 得到了所有可能的结果
-            # 创建一个对应索引的mask，可以接受的字母为1，没有的字母为0，如果字母一样怎么办呢？
-            output, hidden = self.decoder(output, hidden, encoder_outputs)  # 输入依旧是output
-            while True:
-                remaining_letters_set = set()  # 要保存一个列表，保存剩余的可选的字母集合
-                mask = torch.zeros((1, trg_vocab_size))  # 生成0的初始化tensor
-                mask[0, available_letter_index_list] = 1  # 真实可用的字母
-                real_mask = custom_logical_operator(masks[t, 0, :], mask[0, :])  # 代表了哪些字母可以被选择
-                indices = torch.where((real_mask[0, :] == 1) | torch.isposinf(real_mask[0, :]))[0].tolist()
-                print('可选择的索引是', indices)
-                print('可选择的字母是：', [new_dict[index] for index in indices])
-                output = output * real_mask  # 将mask和output相乘,得到只能接受的字母索引
-                outputs[t] = output  # 将预测结果保存起来
-                top1 = output.max(1)[1]  # 预测的最大可能性的输出结果
-                print('选择的字母是：', new_dict[top1.item()])
-                mask_copy_copy = masks_copy.clone()  # 复制一个改为0之前的mask矩阵
-                # 如果选中的该字母目前来看还重复，那么就没必要掩盖，否则的话全部掩盖
-                # 统计可选字母的重复字母
-                duplicated_letters = [x for x in set(available_letter_index_list) if
-                                      available_letter_index_list.count(x) >= 2]
-                if top1.item() not in duplicated_letters:
-                    masks_copy[t + 1:, :, top1.item()] = 0  # !！！！！ 这里没考虑重复字母有大问题
+            # 只收集大于0的才表示可以选择的字母
+            dynamic_available_letter_index_list = [letter for letter, counts in available_letter_index_copy.items() if
+                                                   counts > 0]
+            output, hidden = self.decoder(output, hidden, encoder_outputs)  # 输入是一个索引
+            mask = torch.zeros((1, trg_vocab_size))  # 生成0的初始化tensor
+            mask[0, dynamic_available_letter_index_list] = 1  # 真实可用的字母
+            real_mask = custom_logical_operator(masks[t, 0, :], mask[0, :])  # 代表了哪些字母可以被选择
+            output = output * real_mask  # 将mask和output相乘,得到只能接受的字母索引(最后可能是全0的情况)
+            # indices = torch.where((output[0, :] > 0))[0].tolist()
 
-                for i in range(t + 1, target_length):
-                    for j in range(masks_copy.size(1)):
-                        inner_tensor = masks_copy[i, j]
-                        print('剩余的tensor', inner_tensor)
-                        indices = torch.where((inner_tensor == 1) | torch.isposinf(inner_tensor))[0].tolist()
-                        for index in indices:
-                            remaining_letters_set.add(index)  # 保存了剩余可选字母的个数
-
-                # 统计mask以后该索引列还有多少可选择的位置
-                # duplicated_count = len([x for x in set(available_letter_index_list) if available_letter_index_list.count(x) >= 2])
-                print('剩余可选字母的长度是', (len(remaining_letters_set)), (target_length-(t+1)))
-                # print('剩余重复字母的个数', duplicated_count)
-                # 情况1：如果它本身是正无穷，以及它本身只有一个1可选，那么只能选择这个字母
-                if torch.isposinf(masks_copy[t, :, top1.item()]) or (
-                        torch.where(torch.eq(masks_copy[t, :, :], 1))[
-                            0].numel()) == 1:  # 如果它本身是正无穷以及它只有一个1， 必须选没有任何影响
-                    break
-                # !!!!!情况2：如果选择了它，1：抢了后面的唯一可选字母 2：可选元素的个数小于剩余位置个数，则要重新选择这里的条件有巨大的问题
-                elif [True for tensor in masks_copy[t + 1:] if torch.all(tensor == 0)] or (len(remaining_letters_set) < (target_length-(t+1))):
-                    print('把这个字母移除了：', new_dict[top1.item()])
-                    masks_copy = mask_copy_copy.clone()
-                    available_letter_index_list.remove(top1.item())
+            if torch.all(real_mask == 0).item():  # 如果output全零，那么选择mask中等于1的那个索引的字母
+                if (masks[t] == 1).sum() == 1:  # 代表它是确定性的字母
+                    top1 = masks[t].max(1)[1]
+                    output = masks[t]
                 else:
-                    break
-            available_letter_copy.remove(new_dict[top1.item()])  # 如果已经选择了某个字母则应该移除
+                    top1 = torch.tensor([random.choice(dynamic_available_letter_index_list)])
+                    new_output = torch.zeros((1, trg_vocab_size))  # 生成0的初始化tensor
+                    new_output[0, top1.item()] = 0.5  # 真实可用的字母
+                    output = new_output
+
+            else:
+                top1 = output.max(1)[1]  # 预测的最大可能性的输出结果
+            outputs[t] = output  # 将预测结果保存起来
+
+            # print('可选择的字母是：', [new_dict[index] for index in indices])
+            # print('词库中的字母是：', [new_dict[index] for index in dynamic_available_letter_index_list])
+            # print('可选择的字母的个数是：', [available_letter_index_copy[index] for index in indices])
+            # print('选择的字母是：', top1.item(), new_dict[top1.item()])
+            # 完全确定的字母已经再之前就确定好了，所以没必要再减，只有不确定的才需要减去
+            if (masks[t] == 1).sum() != 1:
+                available_letter_index_copy[top1.item()] -= 1  # 将该字母的counts -1
             output = top1  # 将预测结果作为下一轮的输入
-        return outputs, masks, available_letter
+        return outputs, masks
 
 
 # # 初始化各种参数，这些参数也可以保存到checkpoint中
@@ -364,8 +355,7 @@ def evaluate(model: nn.Module,
     with torch.no_grad():  # no grad
         for _, src in enumerate(iterator):  # simulate the student to see the chinese and phonetic
             src = src.to(device)  # set the device
-            output, masks, available_letter = model(src, available_letter, student_feedback, masks,
-                                                    target_length)  # spell the word
+            output, masks = model(src, available_letter, student_feedback, masks, target_length)  # spell the word
             predicted_outputs = output.permute(1, 0, 2)  # [batch_size, time_dim, vocab_length]
             # 本身就已经是二维[batch,time_step]
             predicted_indices = torch.argmax(predicted_outputs, dim=2)  # 最后一个维度是预测的概率，取最大值[batch_size, time_dim]
@@ -386,4 +376,4 @@ def evaluate(model: nn.Module,
                 for pred_letter in pred:
                     pred_spelling += pred_letter  # 得到预测拼写
                     pred_spelling += ' '  # 中间以空格分割
-        return pred_spelling, masks, available_letter
+        return pred_spelling, masks
