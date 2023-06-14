@@ -1,6 +1,7 @@
 """
 define the interactive environment
 """
+import numpy as np
 from torch.utils.data import DataLoader
 from typing import List, Tuple, Dict
 import random
@@ -12,6 +13,7 @@ import Levenshtein as Levenshtein
 tasks_pool = {'人的 h j u m ʌ n': 'h u m a n', '谦逊的 h ʌ m b ʌ l': 'h u m b l e', '湿的 h j u m ʌ d': 'h u m i d',
               '墨水 ɪ ŋ k': 'i n k', '铁 aɪ ɝ n': 'i r o n', '语言 l æ ŋ ɡ w ʌ dʒ': 'l a n g u a g e',
               '洗衣房 l ɔ n d r i': 'l a u n d r y', '难题 p ʌ z ʌ l ': 'p u z z l e'}
+# tasks_pool = {'语言 l æ ŋ ɡ w ʌ dʒ': 'l a n g u a g e'}
 
 
 # 对于机会玩家，只要选任务就可以，其他的都在抽象类中实现了
@@ -30,7 +32,7 @@ print('all available tasks:', chance_player_legal_tasks)
 chinese, word = chance_player.select_word()  # get the task word
 print('the chinese_phonetic:', chinese)
 print('the word:', word)
-print('game state:', chance_player.is_terminal(4))
+print('game state:', chance_player.is_terminal(2))
 
 
 # 给难度，定义难度，返回难度参数， apply actions
@@ -56,7 +58,7 @@ class TutorPlayer(TutorInterface):
 tutor_player = TutorPlayer()
 tutor_player_legal_difficulty_levels = tutor_player.legal_difficulty_levels(3)
 print('legal difficulty levels: ', tutor_player_legal_difficulty_levels)
-difficulty_setting = tutor_player.decide_difficulty_level(1)
+difficulty_setting = tutor_player.decide_difficulty_level(2)
 print('difficulty setting:', difficulty_setting)
 
 
@@ -89,14 +91,18 @@ class StudentPlayer(StudentInterface):
         random.shuffle(self.available_letter)
         return self.available_letter
 
-    def student_spelling(self) -> str:
+    def student_spelling(self, student_feedback=None) -> str:
         """
                根据中文和音标拼写英语单词,学生拼写的单词应该在目标单词范围内，所以预测的目标结果，不应该是动作空间以外的字母
                :return: student spelling str
                """
+
         chinese_phonetic_index = data_process(self.chinese_phonetic)
         chinese_phonetic_index_iter = DataLoader(chinese_phonetic_index, batch_size=1, collate_fn=generate_batch)
-        student_spelling = evaluate(model, chinese_phonetic_index_iter, self.available_letter, self.target_length+1)
+        student_spelling, masks = evaluate(model, chinese_phonetic_index_iter, self.available_letter,
+                                                student_feedback, self.masks, self.target_length + 1)
+        self.masks = masks  # 将记忆保存下来
+
         return student_spelling
 
 
@@ -106,13 +112,39 @@ print('students letter space', student_player.letter_space())
 student_spelling = student_player.student_spelling()
 print('student spelling is:', student_spelling)
 
-# class ExaminerPlayer(ExaminerInterface):
-#     def give_feedback(self, student_spelling: str, correct_spelling: str):
-#         for letter in student_spelling:
-#             if letter in student_spelling:
-#
-#                 student_spelling[letter] = 'green'
-# student_spelling_completeness = 1 - Levenshtein.distance(student_spelling, correct_spelling) / len(
-#     correct_spelling)
-# student_spelling_accuracy = Levenshtein.ratio(student_spelling, correct_spelling)
-# return student_spelling_completeness, student_spelling_accuracy
+
+class ExaminerPlayer(ExaminerInterface):
+    def __init__(self):
+        super(ExaminerPlayer, self).__init__()  # inherit abstract
+
+    def give_feedback(self, student_spelling: str, correct_spelling: str):  # 'n i r o ', 'i r o n'
+        student_spelling: List[str] = student_spelling.strip().split(' ')  # 首先将输入按照空格分割然后返回一个列表
+        correct_spelling: List[str] = correct_spelling.strip().split(' ')  # 首先将输入按照空格分割然后返回一个列表
+        self.student_feedback: Dict[str, int] = {}  # 每次给反馈清空以前的反馈
+        # get the students' feedback
+        for index in range(len(student_spelling)):  # 通过索引来给字母打分
+            current_letter = student_spelling[index]  # get the letter
+            if current_letter not in correct_spelling:  # 如果这个字母不在正确的字母中
+                self.student_feedback[current_letter + '_' + str(index)] = 0  # 0 present red letter
+            elif current_letter == correct_spelling[index]:
+                self.student_feedback[current_letter + '_' + str(index)] = 2  # 2 present green letter
+            else:
+                self.student_feedback[current_letter + '_' + str(index)] = 1  # 1 present yellow letter
+        # get the tutors' feedback
+        student_spelling_completeness: float = 1 - Levenshtein.distance(''.join(student_spelling),
+                                                                 ''.join(correct_spelling)) / len(correct_spelling)
+        student_spelling_accuracy: float = Levenshtein.ratio(''.join(student_spelling), ''.join(correct_spelling))
+        self.tutor_feedback: List[float] = [round(student_spelling_completeness, 3), round(student_spelling_accuracy, 3)]
+
+        return self.student_feedback, self.tutor_feedback
+
+
+examiner_player = ExaminerPlayer()
+student_feedback, tutor_feedback = examiner_player.give_feedback(student_spelling, word)
+print(f'student feedback:{student_feedback},tutor feedback:{tutor_feedback}')
+
+for i in range(10):
+    student_spelling = student_player.student_spelling(student_feedback)
+    student_feedback, tutor_feedback = examiner_player.give_feedback(student_spelling, word)
+    print('student spelling is:', student_spelling)
+    print(f'student feedback:{student_feedback},tutor feedback:{tutor_feedback}')
