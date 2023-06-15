@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torchtext.data.utils import get_tokenizer
 import pickle
-from typing import List, Dict
+from typing import List, Dict, Union
 from collections import Counter
 import random
 
@@ -341,7 +341,7 @@ model.load_state_dict(checkpoint['model_state_dict'])  # 加载model
 def evaluate(model: nn.Module,
              iterator: torch.utils.data.DataLoader,
              available_letter: List[str],
-             student_feedback: List[int],
+             student_feedback: Union[None, Dict[str, int]],
              masks,
              target_length):
     model.eval()  # evaluation mode

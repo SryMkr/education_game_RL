@@ -106,7 +106,7 @@ class StudentPlayer(StudentInterface):
 
 # 统计除了空格以外的字符串的长度，+1的目的是因为预测的时候有首
 # student_player = StudentPlayer(2, 'student', chinese, word, difficulty_setting)
-# print('students letter space', student_player.letter_space())
+# print('students letter space', student_player.letter_space)
 # student_spelling = student_player.student_spelling()
 # print('student spelling is:', student_spelling)
 
@@ -138,7 +138,7 @@ class ExaminerPlayer(ExaminerInterface):
 
         return self.student_feedback, self.tutor_feedback
 
-
+#
 # examiner_player = ExaminerPlayer(3, 'examiner')
 # student_feedback, tutor_feedback = examiner_player.give_feedback(student_spelling, word)
 # print(f'student feedback:{student_feedback},tutor feedback:{tutor_feedback}')
