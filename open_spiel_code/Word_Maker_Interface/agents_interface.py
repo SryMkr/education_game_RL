@@ -139,6 +139,7 @@ class StudentInterface(AgentAbstractBaseClass):
         self.confusing_letter: List[str] = []
         self.masks = None
         self.stu_spelling: str = ''
+        self.stu_feedback: Union[None, Dict[str, int]] = {}
 
     @abc.abstractmethod
     def letter_space(self) -> List[str]:
