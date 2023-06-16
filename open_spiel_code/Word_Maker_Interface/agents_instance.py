@@ -85,6 +85,7 @@ class StudentPlayer(StudentInterface):
         return self.stu_spelling
 
 
+# examiner player
 class ExaminerPlayer(ExaminerInterface):
     def __init__(self, player_id, player_name):
         super().__init__(player_id, player_name)  # inherit abstract
