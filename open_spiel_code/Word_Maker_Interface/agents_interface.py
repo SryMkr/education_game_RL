@@ -1,6 +1,11 @@
 """
 1: agent base abstract class, and per agent interface
 2: initial some parameters that will be regularly used in agents instance
+# In a nutshell: An agent normally has
+    (1) attributes: player_ID, player_Name, **agent_specific_kwargs, all implemented in __init__ function
+    (2) step function: A: parameter: get the state of environment
+                       B: a policy get the state and provide the probabilities, then agent select an action based on probabilities
+    compared with the (uniform_random) agent that have different policy
 """
 
 import abc
@@ -19,7 +24,7 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
 
                 Args:
                     player_id: integer, mandatory.
-                    player_name: string. Defaults to `student agent`.
+                    player_name: string.
                     **agent_specific_kwargs: optional extra args.
                 """
         self._player_id: int = player_id
@@ -70,7 +75,8 @@ class ChanceInterface(AgentAbstractBaseClass):
     @abc.abstractmethod
     def select_word(self) -> Tuple[str, str]:
         """
-            :return: the task pair
+            (1) random (2) sequence
+            :return: the task pair ('人的 h j u m ʌ n': 'h u m a n')
             """
         return self._ch_pho, self._word
 
@@ -105,6 +111,9 @@ class TutorInterface(AgentAbstractBaseClass):
     def decide_difficulty_level(self,
                                 current_game_round: int) -> Dict[str, int]:
         """
+        # 这个函数的输入参数需要修改
+        # get the state of environment (parameter), implemented policy, select an action from legal action,
+        then output the selected action(difficulty level)
         :return: the difficulty setting
         """
         pass
@@ -128,8 +137,9 @@ class StudentInterface(AgentAbstractBaseClass):
             self.target_length: integer, store the length of spelling
             self.available_letter: legal letters
             self.confusing_letter, the chosen confusing letter
-            self.masks, tensor, will be used in spelling 
+            self.masks, tensor, will be used in spelling, learn from feedback 
             self.stu_spelling, string, initialize student spelling
+            self.stu_feedback, Dict, getting from examiner
         """
         self._CONFUSING_LETTER_DIC: Dict[str, List[str]] = {}
         self.chinese_phonetic: str = chinese_phonetic
@@ -144,6 +154,7 @@ class StudentInterface(AgentAbstractBaseClass):
     @abc.abstractmethod
     def letter_space(self) -> List[str]:
         """
+         only correct letter ot a group of confusing letter and correct letter
             :return: list of legal letters [a,c,d,f,e,b,t,y]
         """
         pass
