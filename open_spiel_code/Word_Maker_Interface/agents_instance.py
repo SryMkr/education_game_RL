@@ -9,12 +9,8 @@ from Word_Maker_RL.agents_interface import *
 from student_spelling import evaluate, model, data_process, generate_batch
 import Levenshtein as Levenshtein
 
-# define the tasks pool
-tasks_pool = {'人的 h j u m ʌ n': 'h u m a n', '谦逊的 h ʌ m b ʌ l': 'h u m b l e', '湿的 h j u m ʌ d': 'h u m i d',
-              '墨水 ɪ ŋ k': 'i n k', '铁 aɪ ɝ n': 'i r o n', '语言 l æ ŋ ɡ w ʌ dʒ': 'l a n g u a g e',
-              '洗衣房 l ɔ n d r i': 'l a u n d r y', '难题 p ʌ z ʌ l ': 'p u z z l e'}
 
-
+# chance player
 class ChancePlayer(ChanceInterface):
     def __init__(self, player_id, player_name, custom_tasks_pool):
         super().__init__(player_id, player_name, custom_tasks_pool)
@@ -25,18 +21,10 @@ class ChancePlayer(ChanceInterface):
         return self._ch_pho, self._word
 
 
-# chance_player = ChancePlayer(player_id=0, player_name='student', custom_tasks_pool=tasks_pool)
-# chinese, word = chance_player.select_word
-# print(chance_player.player_id)
-# print(chance_player.player_name)
-# print('the chinese_phonetic:', chinese)
-# print('the word:', word)
-
-
+# tutor player
 class TutorPlayer(TutorInterface):
     def __init__(self, player_id, player_name):
         super().__init__(player_id, player_name)
-        # question:如何设置为有无中文和音标
         self.difficulty_level_definition = {
             1: {'attempts': 4, 'confusing_letter_setting': 0, 'chinese_setting': 1, 'phonetic_setting': 1},
             2: {'attempts': 3, 'confusing_letter_setting': 1, 'chinese_setting': 1, 'phonetic_setting': 1},
@@ -54,17 +42,9 @@ class TutorPlayer(TutorInterface):
         return self.difficulty_level_definition[current_game_round]
 
 
-# tutor_player = TutorPlayer(player_id=1, player_name='tutor')
-# tutor_player_legal_difficulty_levels = tutor_player.legal_difficulty_levels(3)
-# print('legal difficulty levels: ', tutor_player_legal_difficulty_levels)
-# difficulty_setting = tutor_player.decide_difficulty_level(1)
-# print('difficulty setting:', difficulty_setting)
-
-
+# student player
 class StudentPlayer(StudentInterface):
-    # 这里必须有父类的positional arguments, 如果要加新的参数则在后面添加就是
     def __init__(self, player_id, player_name, chinese_phonetic, target_english, current_difficulty_setting):
-        # 父类的参数和子类的参数是一样的，然后最重要的是也会继承父类的初始化方法，所以不用自己定义，当然也可以重写
         super().__init__(player_id, player_name, chinese_phonetic, target_english, current_difficulty_setting)
 
         self._CONFUSING_LETTER_DIC = {'a': ['e', 'i', 'o', 'u', 'y'], 'b': ['d', 'p', 'q', 't'],
@@ -93,6 +73,7 @@ class StudentPlayer(StudentInterface):
     def student_spelling(self, stu_feedback=None):
         """
                根据中文和音标拼写英语单词,学生拼写的单词应该在目标单词范围内，所以预测的目标结果，不应该是动作空间以外的字母
+               如果我中文和音标输入，只输入中文，只输入英文会不会导致结果有很大的变化？
                :return: student spelling str
                """
         self.stu_feedback = stu_feedback
@@ -102,13 +83,6 @@ class StudentPlayer(StudentInterface):
                                                  self.stu_feedback, self.masks, self.target_length + 1)
 
         return self.stu_spelling
-
-
-# 统计除了空格以外的字符串的长度，+1的目的是因为预测的时候有首
-# student_player = StudentPlayer(2, 'student', chinese, word, difficulty_setting)
-# print('students letter space', student_player.letter_space)
-# student_spelling = student_player.student_spelling()
-# print('student spelling is:', student_spelling)
 
 
 class ExaminerPlayer(ExaminerInterface):
@@ -138,13 +112,3 @@ class ExaminerPlayer(ExaminerInterface):
 
         return self.student_feedback, self.tutor_feedback
 
-#
-# examiner_player = ExaminerPlayer(3, 'examiner')
-# student_feedback, tutor_feedback = examiner_player.give_feedback(student_spelling, word)
-# print(f'student feedback:{student_feedback},tutor feedback:{tutor_feedback}')
-#
-# for i in range(10):
-#     student_spelling = student_player.student_spelling(student_feedback)
-#     student_feedback, tutor_feedback = examiner_player.give_feedback(student_spelling, word)
-#     print('student spelling is:', student_spelling)
-#     print(f'student feedback:{student_feedback},tutor feedback:{tutor_feedback}')
