@@ -9,7 +9,8 @@
 """
 
 import abc
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Optional
+from torch import Tensor
 
 
 class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
@@ -75,7 +76,7 @@ class ChanceInterface(AgentAbstractBaseClass):
     @abc.abstractmethod
     def select_word(self) -> Tuple[str, str]:
         """
-            (1) random (2) sequence
+             many or one   (1) random (2) sequence
             :return: the task pair ('人的 h j u m ʌ n': 'h u m a n')
             """
         return self._ch_pho, self._word
@@ -91,7 +92,7 @@ class TutorInterface(AgentAbstractBaseClass):
 
         Args:
             self.difficulty_levels_definition: Dictionary, mandatory, the difficulty definition
-            self.current_difficulty_level: integer, the initial difficulty level
+            self.current_difficulty_level: integer, the initial difficulty level is always 1 
             self.legal_difficulty_level: store available letter 
 
         """
@@ -111,7 +112,7 @@ class TutorInterface(AgentAbstractBaseClass):
     def decide_difficulty_level(self,
                                 current_game_round: int) -> Dict[str, int]:
         """
-        # 这个函数的输入参数需要修改
+        # 这个函数的输入参数需要修改 [self, state]-> action -> difficulty setting
         # get the state of environment (parameter), implemented policy, select an action from legal action,
         then output the selected action(difficulty level)
         :return: the difficulty setting
@@ -124,7 +125,7 @@ class StudentInterface(AgentAbstractBaseClass):
     def __init__(self,
                  player_id: int,
                  player_name: str,
-                 chinese_phonetic: str,
+                 chinese_phonetic: str,  # ！！！！！！！直接掩盖掉，还是加一些噪声？
                  target_english: str,
                  difficulty_setting: Dict[str, int]):
         super().__init__(player_id, player_name)
@@ -142,14 +143,15 @@ class StudentInterface(AgentAbstractBaseClass):
             self.stu_feedback, Dict, getting from examiner
         """
         self._CONFUSING_LETTER_DIC: Dict[str, List[str]] = {}
-        self.chinese_phonetic: str = chinese_phonetic
+        self.chinese_phonetic: str = chinese_phonetic  # 这个根据游戏设置，需要修改输入的参数是什么？
         self.difficulty_setting: Dict[str, int] = difficulty_setting
-        self.target_length = len(target_english.replace(" ", ""))
+        self.target_length: int = len(target_english.replace(" ", ""))
+        self.target_spelling: str = target_english
         self.available_letter: List[str] = target_english.split(' ')
         self.confusing_letter: List[str] = []
-        self.masks = None
+        self.masks: Optional[Tensor] = None
         self.stu_spelling: str = ''
-        self.stu_feedback: Union[None, Dict[str, int]] = {}
+        self.stu_feedback: Optional[Dict[str, int]] = {}
 
     @abc.abstractmethod
     def letter_space(self) -> List[str]:
@@ -161,9 +163,16 @@ class StudentInterface(AgentAbstractBaseClass):
 
     @abc.abstractmethod
     def student_spelling(self,
-                         student_feedback:  Union[None, Dict[str, int]]) -> List[str]:
+                         student_feedback: Optional[Dict[str, int]]) -> List[str]:
         """
         :return: student spelling
+        """
+        pass
+
+    @abc.abstractmethod
+    def student_memorizing(self) -> None:
+        """
+        :return: for students memorizing once difficulty level changes
         """
         pass
 
@@ -173,7 +182,7 @@ class ExaminerInterface(AgentAbstractBaseClass):
     input: students spelling, correct spelling
 
         :return:  students feedback: {letter, color_index}
-                  tutor feedback: [accuracy, completeness, attempts,....]
+                  tutor feedback: [accuracy, completeness, attempts, difficulty_level....]
         """
 
     def __init__(self,
@@ -195,6 +204,6 @@ class ExaminerInterface(AgentAbstractBaseClass):
                       correct_spelling: str) -> Tuple[Dict[str, int], List[float]]:
         """
         :return:  students feedback: {letter, color_index}
-                  tutor feedback: [accuracy, completeness, attempts,....]
+                  tutor feedback: [accuracy, completeness, attempts, difficulty_level....]
         """
         pass
