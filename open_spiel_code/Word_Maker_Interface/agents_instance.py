@@ -1,12 +1,15 @@
 """
 1: agents instance
 2: the method of tutor should be changed in the future
+问题1：根据难度变化，修改学生的输入参数  那么只输入汉语或者只输入英文会对模型有什么影响么？
+问题2：暂停拼写，等训练结束，保存模型再继续拼写。
 """
 
 from torch.utils.data import DataLoader
 import random
 from Word_Maker_RL.agents_interface import *
 from student_spelling import evaluate, model, data_process, generate_batch
+from student_memorizing import train_student
 import Levenshtein as Levenshtein
 
 
@@ -37,7 +40,8 @@ class TutorPlayer(TutorInterface):
         self.legal_difficulty_level = difficulty_levels[(previous_difficulty_level - 1):]
         return self.legal_difficulty_level
 
-    # get the difficulty setting
+    # get the difficulty setting [self,state] -> policy->action
+    # state->[accuracy,completeness,difficulty level,current game round,red,green,yellow]
     def decide_difficulty_level(self, current_game_round):
         return self.difficulty_level_definition[current_game_round]
 
@@ -60,6 +64,7 @@ class StudentPlayer(StudentInterface):
                                       'w': ['f', 'v'],
                                       'x': ['s', 'z'], 'y': ['e', 'i'], 'z': ['c', 's']}
 
+
     # confusing letter + correct letter,可不可以根据迷惑字母的个数增加难度
     @property
     def letter_space(self):
@@ -76,16 +81,25 @@ class StudentPlayer(StudentInterface):
                如果我中文和音标输入，只输入中文，只输入英文会不会导致结果有很大的变化？
                :return: student spelling str
                """
+        self.chinese_phonetic_index = data_process(self.chinese_phonetic)
+        if self.difficulty_setting['phonetic_setting'] == 0:  # 如果没有音标
+            self.chinese_phonetic_index = [self.chinese_phonetic_index[0][:1]]
+        if self.difficulty_setting['chinese_setting'] == 0:  # 如果没有中文
+            self.chinese_phonetic_index = [self.chinese_phonetic_index[0][1:]]
+        print('学生能看到的东西是', self.chinese_phonetic_index)
+        self.chinese_phonetic_index_iter = DataLoader(self.chinese_phonetic_index, batch_size=1,
+                                                      collate_fn=generate_batch)
+        print('学生能看到的索引是', [i for i in self.chinese_phonetic_index_iter])
         self.stu_feedback = stu_feedback
-        chinese_phonetic_index = data_process(self.chinese_phonetic)
-        chinese_phonetic_index_iter = DataLoader(chinese_phonetic_index, batch_size=1, collate_fn=generate_batch)
-        self.stu_spelling, self.masks = evaluate(model, chinese_phonetic_index_iter, self.available_letter,
+        self.stu_spelling, self.masks = evaluate(model, self.chinese_phonetic_index_iter, self.available_letter,
                                                  self.stu_feedback, self.masks, self.target_length + 1)
-
         return self.stu_spelling
 
+    def student_memorizing(self):
+        # train_student(self.chinese_phonetic_index_iter, self.stu_feedback, self.masks, self.target_length + 1, self.target_spelling)
+        train_student(dict({self.chinese_phonetic: self.target_spelling}))
 
-# examiner player
+
 class ExaminerPlayer(ExaminerInterface):
     def __init__(self, player_id, player_name):
         super().__init__(player_id, player_name)  # inherit abstract
@@ -109,7 +123,7 @@ class ExaminerPlayer(ExaminerInterface):
             correct_spelling)
         student_spelling_accuracy = Levenshtein.ratio(''.join(stu_spelling), ''.join(correct_spelling))
         self.tutor_feedback = [round(student_spelling_completeness, 3),
-                               round(student_spelling_accuracy, 3)]
+                               round(student_spelling_accuracy, 3)]  # red, green, green, current difficulty, current round
 
         return self.student_feedback, self.tutor_feedback
 

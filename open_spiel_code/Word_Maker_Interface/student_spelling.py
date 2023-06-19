@@ -1,10 +1,8 @@
 """
-那么如何学习呢？ 如果将反馈的结果可以加到学生的经验当中呢？,怎么设计训练的问题，应该还是在权重上做文章，可能还涉及到继续训练的问题
-破解思路是让可能性最小的先选，或者取差集，选择其他的可能性
+6月17号-24号任务：1：使用正确结果进行训练， （2）得到训练好的模型以后，用新的模型继续拼写 （3）考虑换难度，学生输入情况的问题
+1: 只训练这一个单词的模型
 """
-import random
 
-import numpy as np
 import torch
 from torchtext.data.utils import get_tokenizer
 import pickle
@@ -27,6 +25,9 @@ def custom_logical_operator(tensor1, tensor2):
 
 
 # -------------------------------------------------加载词库--------------------------------------------------------------
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # define device
+checkpoint = torch.load('simulate_student/model_parameters/model_parameters_0.1.pt')  # load model parameter
+
 chinese_tokenizer = get_tokenizer(None)  # None代表以空格作为分词器
 
 chinese_vocab_path = 'simulate_student/vocab/chinese_vocab.pkl'  # 中文词库路径
@@ -40,9 +41,8 @@ with open(english_vocab_path, 'rb') as f:
 new_dict = {v: k for k, v in english_vocab.get_stoi().items()}  # [index, word]
 
 
-# print(english_vocab.get_stoi()) # {word:index}
+# print(english_vocab.get_stoi())  # {word:index}
 # print(new_dict)
-
 
 # convert token to index
 def data_process(chinese_phonetic):
@@ -51,10 +51,6 @@ def data_process(chinese_phonetic):
                                    dtype=torch.long)
     data.append(chinese_tensor_)
     return data
-
-
-# test_data = data_process('谦逊的 h ʌ m b ʌ l')  # student input
-# print(test_data)
 
 
 PAD_IDX = chinese_vocab['<pad>']  # 1
@@ -66,7 +62,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 
 
-#  加入首位开始和结束标识符，如果长度不匹配需要补1，最终返回嵌套列表
+#  加入首位开始和结束标识符，如果长度不匹配需要补1（补的是batch），最终返回嵌套列表
 def generate_batch(data_batch):
     chinese_batch = []
     for chinese_item in data_batch:
@@ -82,13 +78,10 @@ import torch.nn.functional as F
 from torch import Tensor
 import math
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # define device
-checkpoint = torch.load('simulate_student/model_parameters/model_parameters_0.1.pt')  # load model parameter
-
 
 # 定义位置编码，记录word之间的相对位置 max_len代表了时间步长，只是因为每个batch都变长，所以直接设置一个最大值，然后到时候再切割
 class PositionalEncoding(nn.Module):
-    def __init__(self, embedding_dim: int, dropout: float = 0.0, max_len: int = 500):
+    def __init__(self, embedding_dim, dropout=0.0, max_len=500):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
         position = torch.arange(max_len).unsqueeze(1)
@@ -99,10 +92,14 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('position_encoding', position_encoding)  # 加载到模型中
 
     # 截取和时间步长一样的维度，一直向后广播，所有的数都加上一个相对位置
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x):
         # x: Tensor [seq_len, batch_size, embedding_dim]``
         x = x + self.position_encoding[:x.size(0)]  # 采用的加法操作
         return x
+
+
+chinese_weight = checkpoint['chinese_weight']
+phoneme_weight = checkpoint['phoneme_weight']
 
 
 # 设置编码器
@@ -129,19 +126,19 @@ class Encoder(nn.Module):
 
     # 所以这里的forward是一步输入
     def forward(self, src: Tensor):  # 这里输入的tensor是[time_dim,batch_size]
-        embedded = self.embedding(src)  # [time_dim,batch_size,emb_dim] [34, 128, 32]
+        embedded = self.embedding(src)  # [time_dim,batch_size,emb_dim]
         # 将第二个维度的第一行代表汉语乘以权重，提高汉语的比重
-        embedded[:, 0, :] *= checkpoint['chinese_weight']
+        embedded[:, 0, :] *= chinese_weight
         # 将第二个维度的剩余行代表音标乘以权重，降低音标的比重
-        embedded[:, 1:, :] *= checkpoint['phoneme_weight']
+        embedded[:, 1:, :] *= phoneme_weight
         # 在位置信息加上去之前，将汉语和音标的权重设定为固定值
         position_encoding_embedded = self.position_encoding(embedded)  # 将位置信息加上去
         # [num_layers * num_directions, batch_size, encoder_hidden_size]
         # hidden的最后一层的输出保存了time_dim的所有信息,所以输出只有# [num_layers * num_directions，batch_size, encoder_hidden_size]
-        outputs, hidden = self.rnn(position_encoding_embedded)  # hidden_shape: torch.Size([2, 128, 64])由两层每一层有64个节点
+        outputs, hidden = self.rnn(position_encoding_embedded)
         # -2和-1是为了得到双向网络的最后一层的状态，并且合并所以得到的维度是 [batch_size, encoder_hidden_size*2]
         # 也就是说将输入的源语言映射到了新的维度上，所以说整个就是将输入的时间步长重新映射到了隐藏层上，这个结果叫做context
-        # hidden_shape: torch.Size([128, 64]) # 本来双链RNN链接以后是128后来经过全连接层变成了64位也就是和decoder层一样的隐藏层节点数
+        # hidden_shape: [batch_size, decoder_dim] # 本来双链RNN链接以后是128后来经过全连接层变成了64位也就是和decoder层一样的隐藏层节点数
         hidden = torch.tanh(self.fc(torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1)))
         return outputs, hidden
 
@@ -211,27 +208,27 @@ class Decoder(nn.Module):
     def forward(self,
                 input: Tensor,
                 decoder_hidden,  # 这个是encoder的hidden的tensor
-                encoder_outputs: Tensor):
-        input = input.unsqueeze(0)  # input_shape torch.Size([1, 128])  [1, batch_size]
+                encoder_outputs):
+        input = input.unsqueeze(0)  # input_shape   [1, batch_size]
         embedded = self.dropout(
-            self.embedding(input))  # embedded_shape torch.Size([1, 128, 32]) [1, batch_size,emd_dim]
-        # weighted_encoder_rep_shape torch.Size([1, 128, 128]),quary与那个time_dim更接近
+            self.embedding(input))  # embedded_shape  [1, batch_size,emd_dim]
+        # weighted_encoder_rep_shape ,quary与那个time_dim更接近
         weighted_encoder_rep = self._weighted_encoder_rep(decoder_hidden,
                                                           encoder_outputs)
         # attention_dim + emd_dim
         rnn_input = torch.cat((embedded, weighted_encoder_rep), dim=2)  # rnn_input_shape torch.Size([1, 128, 160])
-        # output_shape torch.Size([1, 128, 64])
-        # decoder_hidden_shape torch.Size([1, 128, 64])
+        # output_shape  [1, batch_size, decoder_dim]
+        # decoder_hidden_shape [1, batch_size, decoder_dim]
         output, decoder_hidden = self.rnn(rnn_input, decoder_hidden.unsqueeze(0))
         embedded = embedded.squeeze(0)
         output = output.squeeze(0)
         weighted_encoder_rep = weighted_encoder_rep.squeeze(0)
-        # 正式得到了decoder的预测输出 output_shape torch.Size([128, 10838])  10838是英语词表的大小
+        # 正式得到了decoder的预测输出 output_shape [batch_size, tar_voc_size]
         # output:输出词与输入词的相关性，输出词，输入词->此表中的概率
         output = self.out(torch.cat((output,
                                      weighted_encoder_rep,
                                      embedded), dim=1))
-        softmax_output = F.softmax(output, dim=1)  # 将输出改为概率，那么所有的概率都将是大于0小于1的数
+        softmax_output = F.softmax(output, dim=1)  # 将输出改为概率， 0<p<1
         return softmax_output, decoder_hidden.squeeze(0)
 
 
@@ -260,7 +257,6 @@ class Seq2Seq(nn.Module):
         for letter in available_letter:  # 循环每一个可选字母
             available_letter_index_list.append(english_vocab.get_stoi()[letter])  # 得到了所有可能的结果
         available_letter_index_counter = dict(Counter(available_letter_index_list))  # [word_index :counter]
-
         if masks is None:  # 初始化一个masks
             masks = torch.zeros(target_length, batch_size, trg_vocab_size).to(self.device)
             real_available_letter_index_list = []  # 存放可选字母的索引
@@ -307,6 +303,7 @@ class Seq2Seq(nn.Module):
             else:
                 top1 = output.max(1)[1]  # 预测的最大可能性的输出结果
             outputs[t] = output  # 将预测结果保存起来
+
             if (masks[t] == 1).sum() != 1:
                 available_letter_index_copy[top1.item()] -= 1  # 将该字母的counts -1
             output = top1  # 将预测结果作为下一轮的输入
@@ -330,20 +327,27 @@ attn = Attention(ENC_HID_DIM, DEC_HID_DIM, ATTN_DIM)
 dec = Decoder(OUTPUT_DIM, DEC_EMB_DIM, ENC_HID_DIM, DEC_HID_DIM, DEC_DROPOUT, attn)
 model = Seq2Seq(enc, dec, device).to(device)
 
-# download parameters
-enc.load_state_dict(checkpoint['encoder_state_dict'])  # 加载encoder
-attn.load_state_dict(checkpoint['attention_state_dict'])  # 加载attention
-dec.load_state_dict(checkpoint['decoder_state_dict'])  # 加载decoder
-model.load_state_dict(checkpoint['model_state_dict'])  # 加载model
+# ---------------------------------------模型定义结束，开始按照规则拼写单词---------------------------------------------------
+import os
 
 
-# ---------------------------------------模型定义结束，开始按照规则拼写单词----------------------------------------------------------
 def evaluate(model: nn.Module,
              iterator: torch.utils.data.DataLoader,
              available_letter: List[str],
              student_feedback: Union[None, Dict[str, int]],
              masks,
              target_length):
+    # 第一次拼写根据以往的记忆，随后的拼写根据训练好点新模型
+    checkpoint = torch.load('Word_Maker_RL/model_parameters/model_parameters_0.1.pt')
+    if os.path.exists('Word_Maker_RL/model_parameters/model_parameters_trained_0.1.pt'):
+        checkpoint = torch.load(
+            'Word_Maker_RL/model_parameters/model_parameters_trained_0.1.pt')  # reload model parameter
+    # 每次训练结束，需要重新加载模型参数
+    enc.load_state_dict(checkpoint['encoder_state_dict'])  # 加载encoder
+    attn.load_state_dict(checkpoint['attention_state_dict'])  # 加载attention
+    dec.load_state_dict(checkpoint['decoder_state_dict'])  # 加载decoder
+    model.load_state_dict(checkpoint['model_state_dict'])  # 加载model
+
     model.eval()  # evaluation mode
     with torch.no_grad():  # no grad
         for _, src in enumerate(iterator):  # simulate the student to see the chinese and phonetic
@@ -356,12 +360,9 @@ def evaluate(model: nn.Module,
             predicted_words_list = []
             for sequence in predicted_indices:  # 得到了每一行数据
                 predicted_words = []
-                for word_index in sequence:
+                for word_index in sequence[1:]:  # 第一个单词是unk，没必要用
                     sequence_words = english_vocab.lookup_token(word_index.item())
-                    if sequence_words == '<eos>':  # 遇到EOS不再保存
-                        break
-                    elif sequence_words not in ['<unk>', '<pad>', '<bos>']:
-                        predicted_words.append(sequence_words)  # 得到每一行的预测值
+                    predicted_words.append(sequence_words)  # 得到每一行的预测值
                 predicted_words_list.append(predicted_words)  # 一个batch的预测结果
             # 拼接单词，开始计算准确度和完整度
             for pred in predicted_words_list:  # 得到预测和真实的列表

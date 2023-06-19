@@ -1,6 +1,9 @@
 """
 def the environment interface
-
+class TimeStep(
+collections.namedtuple(
+        "TimeStep", ["observations", "rewards", "discounts", "step_type"])): # player observation to decide action
+        # in my game, tutor agent see the tutor feedback, then decide the difficulty
 """
 
 from typing import Dict
@@ -23,9 +26,24 @@ class Environment(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def new_initial_state(self):
         """
-        :return: Returns the start of game.
+        :return: Returns the initial start of game.
         """
         pass
+
+    # def get_time_step(self):
+    #     """
+    #            老师中的设定是不是应该在环境中，包括老师能看到什么，学生能看到什么？ 包括可用的字母也是环境的？其实感觉老师和环境都可以，因为
+    #            环境其实也就是老师一个人的事
+    #            :return: Returns a state of game, ["observations", "rewards", "discounts"]
+    #            """
+    #     pass
+
+    # def step(self, action):
+    #     """
+    # 环境采取接受了某个动作后， 环境发生变化，以及对这个动作的奖励
+    #            :return: Returns a state of game, ["observations", "rewards", "discounts"]
+    #            """
+    #     pass
 
     # current ignore this function
     # @abc.abstractmethod
