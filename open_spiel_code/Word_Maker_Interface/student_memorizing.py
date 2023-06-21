@@ -77,7 +77,6 @@ DEC_DROPOUT = 0.0
 # ---------------------------------------------set train sequence-------------------------------------------------------
 import torch.nn as nn
 from torch import Tensor
-import math
 import torch.optim as optim
 
 
@@ -267,7 +266,7 @@ def train_student(tasks_pool):
         attn.load_state_dict(checkpoint['attention_state_dict'])  # 加载attention
         dec.load_state_dict(checkpoint['decoder_state_dict'])  # 加载decoder
         optimizer.load_state_dict((checkpoint['optimizer_state_dict']))
-        N_EPOCHS = checkpoint['epoch'] + 500  # 每一次结束以后都训练50次
+        N_EPOCHS = checkpoint['epoch'] + 200  # 每一次结束以后都训练50次
         start_epoch = checkpoint['epoch']
     CLIP = 1
     split_rate = 0.1

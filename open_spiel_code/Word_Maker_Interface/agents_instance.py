@@ -1,8 +1,6 @@
 """
 1: agents instance
 2: the method of tutor should be changed in the future
-问题1：根据难度变化，修改学生的输入参数  那么只输入汉语或者只输入英文会对模型有什么影响么？
-问题2：暂停拼写，等训练结束，保存模型再继续拼写。
 """
 
 from torch.utils.data import DataLoader
@@ -20,6 +18,9 @@ class ChancePlayer(ChanceInterface):
 
     @property
     def select_word(self):
+        """
+        以后可能修改，直接为顺序读取数据，而且是一个batch这么读取，现在是用一个单词测试所有过程
+        """
         self._ch_pho, self._word = random.choice(list(self._tasks_pool.items()))
         return self._ch_pho, self._word
 
@@ -64,7 +65,6 @@ class StudentPlayer(StudentInterface):
                                       'w': ['f', 'v'],
                                       'x': ['s', 'z'], 'y': ['e', 'i'], 'z': ['c', 's']}
 
-
     # confusing letter + correct letter,可不可以根据迷惑字母的个数增加难度
     @property
     def letter_space(self):
@@ -82,14 +82,13 @@ class StudentPlayer(StudentInterface):
                :return: student spelling str
                """
         self.chinese_phonetic_index = data_process(self.chinese_phonetic)
-        if self.difficulty_setting['phonetic_setting'] == 0:  # 如果没有音标
+        if self.difficulty_setting['phonetic_setting'] == 0:  # only input chinese
             self.chinese_phonetic_index = [self.chinese_phonetic_index[0][:1]]
-        if self.difficulty_setting['chinese_setting'] == 0:  # 如果没有中文
+        if self.difficulty_setting['chinese_setting'] == 0:  # only input phonetic
             self.chinese_phonetic_index = [self.chinese_phonetic_index[0][1:]]
-        print('学生能看到的东西是', self.chinese_phonetic_index)
+
         self.chinese_phonetic_index_iter = DataLoader(self.chinese_phonetic_index, batch_size=1,
                                                       collate_fn=generate_batch)
-        print('学生能看到的索引是', [i for i in self.chinese_phonetic_index_iter])
         self.stu_feedback = stu_feedback
         self.stu_spelling, self.masks = evaluate(model, self.chinese_phonetic_index_iter, self.available_letter,
                                                  self.stu_feedback, self.masks, self.target_length + 1)
@@ -119,8 +118,7 @@ class ExaminerPlayer(ExaminerInterface):
                 self.student_feedback[current_letter + '_' + str(index)] = 1  # 1 present yellow letter
         # get the tutors' feedback
         student_spelling_completeness = 1 - Levenshtein.distance(''.join(stu_spelling),
-                                                                 ''.join(correct_spelling)) / len(
-            correct_spelling)
+                                                                 ''.join(correct_spelling)) / len(correct_spelling)
         student_spelling_accuracy = Levenshtein.ratio(''.join(stu_spelling), ''.join(correct_spelling))
         self.tutor_feedback = [round(student_spelling_completeness, 3),
                                round(student_spelling_accuracy, 3)]  # red, green, green, current difficulty, current round

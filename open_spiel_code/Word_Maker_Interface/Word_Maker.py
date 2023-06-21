@@ -1,3 +1,7 @@
+"""
+如何将模型融合？
+如何模糊参数？
+"""
 from word_maker_environment import WordMakerGame
 
 # define the tasks pool
@@ -14,8 +18,9 @@ state = game.new_initial_state()
 while not state.is_terminal:
     # print(state.current_player)
     # print(state.legal_action)
-    print(f'当前玩家：{state.current_player}, 当前难度设定：{state.current_difficulty_setting}，当前的游戏轮数：{state.current_game_round}, 第几次尝试：{state._current_attempt}, '
-          f'学生的拼写：{state.stu_spelling}， 学生反馈：{state.stu_feedback}, 老师反馈：{state.tutor_feedback}')
+    print(f'current_player：{state.current_player}, current_difficulty_setting：{state.current_difficulty_setting}，'
+          f'current_game_round：{state.current_game_round}, current_attempt：{state._current_attempt}, '
+          f'stu_spelling：{state.stu_spelling}， stu_feedback：{state.stu_feedback}, tutor_feedback：{state.tutor_feedback}')
     # 当前难度设定，迷惑字母设定，学生反馈，老师反馈
     action = state.legal_action
     state.apply_action(action)

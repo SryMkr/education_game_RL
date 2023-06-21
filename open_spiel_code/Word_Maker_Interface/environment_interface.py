@@ -3,7 +3,7 @@ def the environment interface
 class TimeStep(
 collections.namedtuple(
         "TimeStep", ["observations", "rewards", "discounts", "step_type"])): # player observation to decide action
-        # in my game, tutor agent see the tutor feedback, then decide the difficulty
+        # in my game, tutor agent see the tutor feedback, then decide the difficulty level
 """
 
 from typing import Dict

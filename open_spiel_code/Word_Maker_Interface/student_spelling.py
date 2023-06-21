@@ -252,7 +252,6 @@ class Seq2Seq(nn.Module):
         outputs = torch.zeros(target_length, batch_size, trg_vocab_size).to(self.device)  # 多一行unk
         encoder_outputs, hidden = self.encoder(src)  # value，query
         output = src[0, :]  # 第一行永远是‘<unk>’
-
         available_letter_index_list = []
         for letter in available_letter:  # 循环每一个可选字母
             available_letter_index_list.append(english_vocab.get_stoi()[letter])  # 得到了所有可能的结果
@@ -280,12 +279,12 @@ class Seq2Seq(nn.Module):
                     masks[int(current_index) + 1, :, current_letter_index] = 1  # 然后再把这个点标记为1
                     available_letter_index_counter[current_letter_index] -= 1  # green present fixed
         available_letter_index_copy = available_letter_index_counter.copy()  # 需要复制一份可用字母，不然会自动减少
-
         for t in range(1, target_length):  # 需要强制将其缩短为目标长度，不然特殊字符也会做预测
             # 只收集大于0的才表示可以选择的字母
             dynamic_available_letter_index_list = [letter for letter, counts in available_letter_index_copy.items() if
                                                    counts > 0]
             output, hidden = self.decoder(output, hidden, encoder_outputs)  # 输入是一个索引
+            print(output)
             mask = torch.zeros((1, trg_vocab_size))  # 生成0的初始化tensor
             mask[0, dynamic_available_letter_index_list] = 1  # 真实可用的字母
             real_mask = custom_logical_operator(masks[t, 0, :], mask[0, :])  # 代表了哪些字母可以被选择
@@ -353,6 +352,7 @@ def evaluate(model: nn.Module,
         for _, src in enumerate(iterator):  # simulate the student to see the chinese and phonetic
             src = src.to(device)  # set the device
             output, masks = model(src, available_letter, student_feedback, masks, target_length)  # spell the word
+            print(output)
             predicted_outputs = output.permute(1, 0, 2)  # [batch_size, time_dim, vocab_length]
             # 本身就已经是二维[batch,time_step]
             predicted_indices = torch.argmax(predicted_outputs, dim=2)  # 最后一个维度是预测的概率，取最大值[batch_size, time_dim]
