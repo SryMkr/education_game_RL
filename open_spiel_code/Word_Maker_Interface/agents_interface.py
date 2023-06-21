@@ -4,7 +4,8 @@
 # In a nutshell: An agent normally has
     (1) attributes: player_ID, player_Name, **agent_specific_kwargs, all implemented in __init__ function
     (2) step function: A: parameter: get the state of environment
-                       B: a policy get the state and provide the probabilities, then agent select an action based on probabilities
+                       B: a policy get the state and provide the action probabilities, then agent select an action based on probabilities
+                       (state->action probabilities->action)
     compared with the (uniform_random) agent that have different policy
 """
 
@@ -48,10 +49,8 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
 
 class ChanceInterface(AgentAbstractBaseClass):
     """
-    formulate the chance player interface
-    step 1: Chance Player get the pairs of input and output [chinese, phonetic] -> [spelling]
-    step 2: Chance Player randomly select a pair of [chinese, phonetic] -> [spelling]
-    step 3: if the game terminates, it is either terminate or to step 2
+    step 1: Chance Player intake the dict of [chinese, phonetic] : [spelling] {'人的 h j u m ʌ n': 'h u m a n', ...............}
+    step 2: Chance Player select a pair of [chinese, phonetic] : [spelling]
     :return: the one pair of [chinese, phonetic] -> [spelling]
     """
 
@@ -93,7 +92,7 @@ class TutorInterface(AgentAbstractBaseClass):
         Args:
             self.difficulty_levels_definition: Dictionary, mandatory, the difficulty definition
             self.current_difficulty_level: integer, the initial difficulty level is always 1 
-            self.legal_difficulty_level: store available letter 
+            self.legal_difficulty_level: store legal difficulty level 
 
         """
         self.difficulty_levels_definition: Dict[int, Dict[str, int]] = {}
@@ -110,9 +109,10 @@ class TutorInterface(AgentAbstractBaseClass):
 
     @abc.abstractmethod
     def decide_difficulty_level(self,
-                                current_game_round: int) -> Dict[str, int]:
+                                **agent_specific_kwargs,
+                                ) -> Dict[str, int]:
         """
-        # 这个函数的输入参数需要修改 [self, state]-> action -> difficulty setting
+        #  [self, state]-> action -> difficulty setting
         # get the state of environment (parameter), implemented policy, select an action from legal action,
         then output the selected action(difficulty level)
         :return: the difficulty setting
@@ -143,7 +143,7 @@ class StudentInterface(AgentAbstractBaseClass):
             self.stu_feedback, Dict, getting from examiner
         """
         self._CONFUSING_LETTER_DIC: Dict[str, List[str]] = {}
-        self.chinese_phonetic: str = chinese_phonetic  # 这个根据游戏设置，需要修改输入的参数是什么？
+        self.chinese_phonetic: str = chinese_phonetic
         self.difficulty_setting: Dict[str, int] = difficulty_setting
         self.target_length: int = len(target_english.replace(" ", ""))
         self.target_spelling: str = target_english
