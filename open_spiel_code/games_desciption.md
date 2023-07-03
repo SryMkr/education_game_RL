@@ -1,6 +1,6 @@
 该文件是对open-spiel中内置的游戏的理解。每个游戏详情介绍请参考open-spiel/integration_tests/playthroghs/  
 
-第一类：pattern类游戏。
+第一类：pattern类游戏  
    Y，Hex，Havannah，Dark Hex，Pentago(五子棋)，Connect Four(4四子棋)，Tic-Tac-Toe，基本玩法属于一类，都是为了让棋子连起来呈现某种模式    
    玩家：两个，有先后顺序，零和游戏  
    游戏形式：棋盘，等腰三角形  
