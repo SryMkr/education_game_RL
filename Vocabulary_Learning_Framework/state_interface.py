@@ -20,6 +20,8 @@ class StateInterface(metaclass=abc.ABCMeta):
         self._vocab_data: the vocabulary book data
         self._current_session: the current session, change over time
         self._game_over: the game state
+        self._session_player: initialize session player
+        self._session_data: tasks in one session
     """
 
     @abc.abstractmethod
@@ -59,18 +61,17 @@ class StateInterface(metaclass=abc.ABCMeta):
     def apply_action(self, action: str) -> _PLAYER_ACTION:
         """
         apply action
-        :return: Returns the (player ID, action name) of the next player.
+        :return: Returns the (player name, action name) of the next player.
         """
         pass
 
     @property
+    def session_data(self) -> List[List[str]]:
+        return self._session_data
+
+    @property
     def vocab_data(self) -> Dict[str, str]:
         return self._vocab_data
-
-    #
-    # @property
-    # def total_game_round(self) -> int:
-    #     return self._total_game_round
 
     @property
     def is_terminal(self) -> bool:
