@@ -13,6 +13,6 @@ while not state.is_terminal:
     print(state.legal_action)
     print(state.current_session)
     print(state.apply_action(state.legal_action))
-    print(state._session_data)
+    print(state.session_data)
 
 
