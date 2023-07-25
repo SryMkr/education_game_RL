@@ -32,7 +32,7 @@ class PreProcessBookInterface(metaclass=abc.ABCMeta):
             Args:
                 self._raw_file_path: str, mandatory. for costuming data. raw data path
                 self._write_file_path: str, mandatory. write to target file
-                self._vocab_data, vocab data, format [chinese, pos, [phonemes], English]  for example
+                self._vocab_data: vocab data, format [chinese, pos, [phonemes], English]  for example
                 ['丢弃', 'vt', ['d', 'ɪ', 's', 'k', 'ɑ', 'r', 'd'], 'discard']
                 **agent_specific_kwargs: optional extra args.
                 """
