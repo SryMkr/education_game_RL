@@ -4,9 +4,10 @@
 """
 
 from agents_interface import *
+import random
 
 
-# TaskCollector agent
+# TaskCollector Agent
 class SessionCollectorPlayer(SessionCollectorInterface):
     def __init__(self,
                  player_id,
@@ -38,6 +39,20 @@ class SessionCollectorPlayer(SessionCollectorInterface):
                     :return: one session words data over time
                     """
         return self._vocabulary_session[current_session]
+
+
+# PresentWord Agent
+class PresentWordPlayer(PresentWordInterface):
+    def __init__(self,
+                 player_id,
+                 player_name,
+                 session_data,
+                 selection_method):
+        super().__init__(player_id,
+                         player_name,
+                         session_data,
+                         selection_method)
+
 
 # # tutor player
 # class TutorPlayer(TutorInterface):

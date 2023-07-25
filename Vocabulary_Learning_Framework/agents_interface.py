@@ -103,9 +103,78 @@ class SessionCollectorInterface(AgentAbstractBaseClass):
     @abc.abstractmethod
     def session_collector(self, current_session) -> List[List[str]]:
         """
-                    :return: one session words data over time
+                    :return: select one session words data from vocabulary books over time
                     """
         pass
+
+
+class PresentWordInterface(AgentAbstractBaseClass):
+    """ select one word from session data, there are four method (1) sequential (2) random (3) easy to hard (4)DDA"""
+
+    @abc.abstractmethod
+    def __init__(self,
+                 player_id: int,
+                 player_name: str,
+                 session_data: List[List[str]],
+                 selection_method: str,
+                 ):
+        super().__init__(player_id, player_name)
+        '''
+        :args:
+                self._session_data: get from sessioncollector agent
+                self._task: a specific task for student agent
+                self._selection_method: the method of selecting task 
+                self._difficulty_session_data: sort from easy to hard
+                self._shuffle_list: copy original data to shuffle
+        '''
+        self._session_data = session_data
+        self._task: List[str] = []
+        self._selection_method = selection_method
+        self._difficulty_session_data = sorted(self._session_data, key=lambda x: len(x[-1]))
+        self._shuffle_list = self._session_data[:]
+        random.shuffle(self._shuffle_list)
+
+    def sequential_method(self):
+        """ sequence method
+          对于顺序选择来说，将第一个选择出来并移到末尾，如果正确了将其移除就好，反正永远只选第一个"""
+        self._task = self._session_data[0]
+        self._session_data = self._session_data[1:] + [self._session_data[0]]
+
+    def random_method(self):
+        """ random method"""
+        self._task = self._shuffle_list[0]
+        self._shuffle_list = self._shuffle_list[1:] + [self._shuffle_list[0]]
+        self._session_data = self._shuffle_list
+
+    def easy_to_hard(self):
+        """ the definition of difficulty of task is the length of task
+           对于从简单到难来说，先按照字母长度排序，然后就是按照顺序选择，直到答对"""
+        self._task = self._difficulty_session_data[0]
+        self._difficulty_session_data = self._difficulty_session_data[1:] + [self._difficulty_session_data[0]]
+        self._session_data = self._difficulty_session_data
+
+    def DDA(self):
+        """ the dynamic difficulty adjustment method, do not achieve currently"""
+        pass
+
+    @property
+    def session_data(self) -> List[List[str]]:
+        return self._session_data
+
+    def select_task(self) -> List[str]:
+        """
+        if correctly answer at hardest test level, the agent need to remove the task from session
+        :returns the task"""
+
+        if self._selection_method == 'sequential':
+            self.sequential_method()
+        elif self._selection_method == 'random':
+            self.random_method()
+        elif self._selection_method == 'easy_to_hard':
+            self.easy_to_hard()
+        elif self._selection_method == 'DDA':
+            self.DDA()
+        return self._task
 
 
 class TutorInterface(AgentAbstractBaseClass):
@@ -206,32 +275,24 @@ class StudentInterface(AgentAbstractBaseClass):
 
 
 class ExaminerInterface(AgentAbstractBaseClass):
-    """
-    input: students spelling, correct spelling
-
-        :return:  students feedback: {letter, color_index}
-                  tutor feedback: [accuracy, completeness, attempts, difficulty_level....]
-        """
+    """Examiner feedback"""
 
     def __init__(self,
                  player_id: int,
                  player_name: str):
         super().__init__(player_id, player_name)
         """Initializes examiner agent.
-
         Args:
             self.student_feedback: Dictionary, mandatory, store students' feedback
             self.tutor_feedback: list, store tutor feedback
         """
-        self.student_feedback: Dict[str, int] = {}
-        self.tutor_feedback: List[float] = []
+        self.examiner_feedback: List[int, int, List[int]] = []
 
     @abc.abstractmethod
     def give_feedback(self,
                       student_spelling: str,
                       correct_spelling: str) -> Tuple[Dict[str, int], List[float]]:
         """
-        :return:  students feedback: {letter, color_index}
-                  tutor feedback: [accuracy, completeness, attempts, difficulty_level....]
+          :return:  Examiner feedback: [accuracy, completeness, letter_judgement]
         """
         pass
