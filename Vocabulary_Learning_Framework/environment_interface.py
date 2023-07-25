@@ -23,14 +23,21 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
                  chinese_setting: bool,
                  phonetic_setting: bool,
                  POS_setting: bool,
-                 english_setting: bool = True):
+                 english_setting: bool,
+                 new_words_number: int,
+                 new_selection_method: str,
+                 task_selection_method: str):
         """
         :args
-                 vocabulary_book_name, options [CET4, CET6], the book you want use
+                 vocabulary_path: the vocab data path
+                 vocabulary_book_name: options [CET4, CET6], the book you want use
                  chinese_setting=True, do you want chinese?
                  phonetic_setting=True, do you want phonetic?
                  POS_setting=True, do you want POS?
                  english_setting=True, must be true
+                 new_words_number: the number of words in one session
+                 new_selection_method: the selection method of one session from vocab data ['sequential','random']
+                 task_selection_method: task selection method ['sequential','random','easy_to_hard','DDA']
                 """
 
         self._vocab_book_name: str = vocabulary_book_name
@@ -41,6 +48,9 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
                                             POS_setting=POS_setting,
                                             english_setting=english_setting)
         self._vocab_data = self._ReadVocabBook.read_vocab_book()
+        self._new_words_number = new_words_number
+        self._new_selection_method = new_selection_method
+        self._task_selection_method = task_selection_method
 
         def information_format():
             """
@@ -78,10 +88,34 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
         return self._vocab_data
 
     @property
+    def new_words_number(self) -> int:
+        """
+
+        :return: the new words number in one session
+        """
+        return self._new_words_number
+
+    @property
+    def new_selection_method(self) -> str:
+        """
+
+        :return: new words selection method
+        """
+        return self._new_selection_method
+
+    @property
+    def task_selection_method(self) -> str:
+        """
+
+        :return: task selection method
+        """
+        return self._task_selection_method
+
+    @property
     def vocab_information_format(self) -> List[str]:
         """
 
-        :return: iterable,  vocabulary data
+        :return: vocab information format
         """
         return self._vocab_information_format
 

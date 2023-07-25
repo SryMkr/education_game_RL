@@ -1,8 +1,8 @@
 """
-define word maker game environment
+define game environment
 """
 from environment_interface import EnvironmentInterface
-import os
+from state_instance import VocabSpellState
 
 
 class VocabSpellGame(EnvironmentInterface):
@@ -12,23 +12,28 @@ class VocabSpellGame(EnvironmentInterface):
                  chinese_setting,
                  phonetic_setting,
                  POS_setting,
-                 english_setting: bool = True):
+                 english_setting,
+                 new_words_number,
+                 new_selection_method,
+                 task_selection_method):
         super().__init__(vocabulary_book_path,
                          vocabulary_book_name,
                          chinese_setting,
                          phonetic_setting,
                          POS_setting,
-                         english_setting)
+                         english_setting,
+                         new_words_number,
+                         new_selection_method,
+                         task_selection_method)
 
     def new_initial_state(self):
-        pass
+        return VocabSpellState(self.vocab_data, self.new_words_number, self.new_selection_method,
+                               self.task_selection_method)
 
-
-if __name__ == '__main__':
-    '''testing interface'''
-    current_path = os.getcwd()
-    vocabulary_absolute_path = os.path.join(current_path, 'vocabulary_books', 'CET4',
-                                            'Vocab.json')
-    a = VocabSpellGame(vocabulary_absolute_path, 'CET4', True, False, False)
-    print(a.book_name, a.vocab_information_format)
-    print(a.vocab_data)
+# if __name__ == '__main__':
+#     '''testing interface'''
+#
+#     SessionCollectorPlayer = SessionCollectorPlayer(1, 'piece', vocabulary_book.vocab_data, 20, 'sequential', 0)
+#     SessionCollectorPlayer.piece_data()
+#
+#     print(SessionCollectorPlayer.session_collector)
