@@ -1,4 +1,7 @@
-"""Joint policy denoted by the RL agents of a game. 如何将策略和agent结合"""
+""" Joint policy denoted by the RL agents of a game. 这个文件给出的是如何将action和probability一一对应 ，当然如果是值对应的就是值，如果是概率对应的解释概率
+    所以研究policy和agent的结合看本文件就可以，其实就是为了给出一个列表这个列表中对应的是{action,prob/value}的字典，本文件实现的就是
+    agent通过读取observation，还有legal_action，返回一个{action,prob/value}的字典，选择动作需要自己写代码实现，其实就是在一个概率分布中选择一个动作而已，在agent的step方法中直接读取选中的action
+"""
 
 from typing import Dict
 
@@ -18,7 +21,7 @@ class JointRLAgentPolicy(policy.Policy):
 
   def __init__(self, game, agents: Dict[int, rl_agent.AbstractAgent],
                use_observation: bool):
-    """Initializes the joint RL agent policy.
+    """ Initializes the joint RL agent policy.
 
     Args:
       game: The game.
