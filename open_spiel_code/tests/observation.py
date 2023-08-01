@@ -1,20 +1,18 @@
-"""An observation of a game. 从AI agent的视角现在知道的所有信息
-This is intended to be the main way to get observations of states in Python.
-The usage pattern is as follows:
-0. Create the game we will be playing
-1. Create each kind of observation required, using `make_observation`
-2. Every time a new observation is required, call:
-      `observation.set_from(state, player)`
+""" An observation of a game. This is intended to be the main way to get observations of states in Python. observation是TimeStep中的一个成员  
+这个文件其实没有什么有价值的信息，其实就是创建一个方法构造observation中应该有的三个成员【information，legal action, current_player】
+The usage pattern is as follows:  
+0. Create the game we will be playing。 首先要有一个游戏  
+1. Create each kind of observation required, using `make_observation`。  使用make_observation方法构造observation    
+2. Every time a new observation is required, call: `observation.set_from(state, player)` 该方法是为了根据当前的state，得到某个玩家的observation
    The tensor contained in the Observation class will be updated with an
    observation of the supplied state. This tensor is updated in-place, so if
    you wish to retain it, you must make a copy.
 The following options are available when creating an Observation:
- - perfect_recall: if true, each observation must allow the observing player to
-   reconstruct their history of actions and observations.
- - public_info: if true, the observation should include public information
- - private_info: specifies for which players private information should be
+ - perfect_recall: if true, each observation must allow the observing player to reconstruct their history of actions and observations. 能看到历史所有的记录
+ - public_info: if true, the observation should include public information。所有agent都可以看到的信息
+ - private_info: specifies for which players private information should be。 某个agent的特定信息
    included - all players, the observing player, or no players
- - params: game-specific parameters for observations
+ - params: game-specific parameters for observations。还有一些其他的游戏参数可以看到
 We ultimately aim to have all games support all combinations of these arguments.
 However, initially many games will only support the combinations corresponding
 to ObservationTensor and InformationStateTensor:
@@ -55,7 +53,7 @@ INFO_STATE_OBS_TYPE = pyspiel.IIGObservationType(perfect_recall=True)
 
 # 这里可能是为了直接调用已经写好的observation类
 class _Observation:
-    """Contains an observation from a game."""
+    """ Contains an observation from a game."""
     # 定义三个参数，环境，iig的游戏观察类型， 环境参数
     def __init__(self, game, imperfect_information_observation_type, params):
         if imperfect_information_observation_type is not None:
