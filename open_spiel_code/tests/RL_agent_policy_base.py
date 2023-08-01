@@ -62,7 +62,7 @@ class JointRLAgentPolicy(policy.Policy):
         observations=self._obs, rewards=None, discounts=None, step_type=None)
 
     p = self._agents[player_id].step(info_state, is_evaluation=True).probs
-    prob_dict = {action: p[action] for action in legal_actions}
+    prob_dict = {action: p[action] for action in legal_actions} # 如果返回的是动作和概率的字典，那么哪里选择动作了？
     return prob_dict
 
 
