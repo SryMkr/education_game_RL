@@ -20,7 +20,9 @@ agents可以通过TimeStep结构体中的observations字段来访问观测信息
 
 See open_spiel/python/examples/rl_example.py for example usages.
 
-总的理解是：环境对接受的动作做出反应，而环境中包括所有的信息，每次返回一个state供给agent做出动作。
+总的理解是：环境对接受的动作做出反应，而环境中包括所有的信息。并且在初始化的时候对于每一个agent都已经定义好了其可以看到的信息，合法动作空间的，以及当前的玩家，奖励，折扣，还有step的类型。agent通过观察环境返回的TimeStep,根据自己的策略选择
+动作，并返回给environment。直到整个交互结束。
+
 """
 import collections  # 定义一个特殊的容器
 import enum  # 枚举类型
