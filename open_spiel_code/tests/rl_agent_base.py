@@ -7,7 +7,7 @@ Reinforcement Learning (RL) Agent Base for Open Spiel.
 import abc  # 抽象类的包，只能继承，不需要实现方法
 import collections  # 特殊的容器类型
 
-# 定义一个具名元组，（元组名字，[元组参数1，2]）类似于 step_output=("action", "probs") 输出的是动作，以及采取该动作的概率
+# 定义一个具名元组，（元组名字，[元组参数1，2]）类似于 step_output=("action", "probs") 输出的是动作，动作的概率分布
 StepOutput = collections.namedtuple("step_output", ["action", "probs"])
 
 
