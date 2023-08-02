@@ -40,9 +40,9 @@ environment中的observation成员里面其实还有三个成员information_stat
 (3.2) 在嵌入新游戏的时候需要设定state，其实就是定义一个state的转换        
 (3.3) 在嵌入游戏的时候，之所以要定义observer, 其实是为了构造TimeStep    
 (3.4) environment就像一个总工程师，控制着这个游戏空间的所有元素，state只是为了判断，接受一个动作以后，那些元素需要做出改变，并且在observer中集成总结，并给到TimeStep中。agent其实并不是需要定义好多，agent的所有信息都是根据
-TimeStep来的，一个agent的类其实只需要如何读取信息，并做相应的决策即可。
-(3.5) open-spiel集成的东西太多，不是我一个人就能完全学会的，所以目前只能理解交互的过程。但是得实时保持学习，尤其是人家得整体框架和各个强化学习得概念是如何交互的，是未来学习的重点框架。
-(3.6) open-spiel, rl, nlp, game design, study science 构成接下来10年的主要学习方向。其他的10年以后再说。
+TimeStep来的，一个agent的类其实只需要如何读取信息，并做相应的决策即可。    
+(3.5) open-spiel集成的东西太多，不是我一个人就能完全学会的，所以目前只能理解交互的过程。但是得实时保持学习，尤其是人家得整体框架和各个强化学习得概念是如何交互的，是未来学习的重点框架。    
+(3.6) open-spiel, rl, nlp, game design, study science 构成接下来10年的主要学习方向。其他的10年以后再说。    
 
 
 
