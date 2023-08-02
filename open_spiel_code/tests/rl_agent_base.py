@@ -30,7 +30,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
           **agent_specific_kwargs: optional extra args. 其他需要加的参数
     """
 
-    # 接受两个参数，一个是接受agent的observation，（time_step.observations）
+    # 直接接受一个TimeStep的信息
     @abc.abstractmethod
     def step(self, time_step, is_evaluation=False):
         """ Returns action probabilities and chosen action at `time_step`. 返回动作的概率，并选择一个动作
