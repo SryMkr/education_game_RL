@@ -1,19 +1,18 @@
-"""Reinforcement Learning (RL) tools Open Spiel."""
+""" Reinforcement Learning (RL) tools Open Spiel.该文件就是定了一个值的基类，并且通过这个值基类实现了常量和线性变量。"""
 
 import abc  # 抽象类，只能继承
 
-
+# 值基类，一种不变，一种线性变化
 class ValueSchedule(metaclass=abc.ABCMeta):
-    """Abstract base class changing (decaying) values."""
-    #  什么是decaying value
+    """ Abstract base class changing (decaying) values. 表示一种根据时间或其他参数变化的值的序列，通常用于调整模型中的超参数或权重等"""
+
     @abc.abstractmethod
     def __init__(self):
-        """Initialize the value schedule."""
+        """ Initialize the value schedule."""
 
     @abc.abstractmethod
     def step(self):
-        """Apply a potential change in the value.
-    This method should be called every time the agent takes a training step.
+        """ Apply a potential change in the value. This method should be called every time the agent takes a training step.
     Returns:
       the value after the step.
     """
@@ -21,12 +20,12 @@ class ValueSchedule(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def value(self):
-        """Return the current value."""
+        """ Return the current value."""
 
 
 # 这个是常量，整个游戏都不改变的值
 class ConstantSchedule(ValueSchedule):
-    """A schedule that keeps the value constant."""
+    """ A schedule that keeps the value constant."""
 
     def __init__(self, value):
         super(ConstantSchedule, self).__init__()
@@ -42,12 +41,12 @@ class ConstantSchedule(ValueSchedule):
 
 # 所以这个线性时间表是用来生成变量的
 class LinearSchedule(ValueSchedule):
-    """A simple linear schedule."""
+    """ A simple linear schedule."""
 
     def __init__(self, init_val, final_val, num_steps):
-        """A simple linear schedule.
-    Once the the number of steps is reached, value is always equal to the final
-    value.
+        """ A simple linear schedule.
+            Once the the number of steps is reached, value is always equal to the final
+            value.
     Arguments:
       init_val: the initial value.
       final_val: the final_value
