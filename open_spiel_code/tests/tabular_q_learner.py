@@ -15,7 +15,7 @@ num_actions = env.action_spec()["num_actions"]  # 返回的是个字典，要用
 
 # Create the agents
 agents = [
-    # 在Q表中，就只有一个类，就是底下这个agent的类，创建两个，因为有两个agent
+    # 在Q表中，就只有一个类，就是底下这个agent的类，创建两个，因为有两个agent,agent是单独初始化的
     tabular_qlearner.QLearner(player_id=idx, num_actions=num_actions)
     for idx in range(num_players)
 ]
