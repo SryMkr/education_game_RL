@@ -1,56 +1,62 @@
 """
-# 本文件目前只考虑从文件中读取数据的情况，不考虑预处理数据的接口
-def the environment interface
-class TimeStep(
-collections.namedtuple(
-        "TimeStep", ["observations", "rewards", "discounts", "step_type"])): # player observation to decide action
-        # in my game, tutor agent see the tutor feedback, then decide the difficulty level
-
+define  the environment interface
+return TimeStep [observation, reward, discount, step_type]
+observations members :{"vocab_sessions", "current_session_num", "legal_action", "current_player",........}
 """
 
 import abc
 from utils.choose_vocab_book import ReadVocabBook
 from typing import List
+import random
 
 
 class EnvironmentInterface(metaclass=abc.ABCMeta):
-    """ reinforcement learning environment class."""
+    """ reinforcement learning environment interface base."""
 
     @abc.abstractmethod
     def __init__(self,
-                 vocabulary_path: str,
-                 vocabulary_book_name: str,
+                 vocab_path: str,
+                 vocab_book_name: str,
                  chinese_setting: bool,
                  phonetic_setting: bool,
                  POS_setting: bool,
                  english_setting: bool,
                  new_words_number: int,
-                 new_selection_method: str,
-                 task_selection_method: str):
+                 discount: float = 1.0
+                 ):
         """
         :args
-                 vocabulary_path: the vocab data path
-                 vocabulary_book_name: options [CET4, CET6], the book you want use
+                 vocab_path: the vocab data path
+                 vocab_book_name: options [CET4, CET6], the book you want use
                  chinese_setting=True, do you want chinese?
                  phonetic_setting=True, do you want phonetic?
                  POS_setting=True, do you want POS?
                  english_setting=True, must be true
                  new_words_number: the number of words in one session
-                 new_selection_method: the selection method of one session from vocab data ['sequential','random']
-                 task_selection_method: task selection method ['sequential','random','easy_to_hard','DDA']
+
+                 self._state: store the information state from state object
+                 self._discount: discount
+                 self._vocabulary_sessions: randomly split vocabulary data into sessions
+                 self._should_reset: the timing to reset the game
                 """
 
-        self._vocab_book_name: str = vocabulary_book_name
-        self._ReadVocabBook = ReadVocabBook(vocab_book_path=vocabulary_path,
-                                            vocab_book_name=vocabulary_book_name,
+        self._vocab_book_name: str = vocab_book_name
+        self._ReadVocabBook = ReadVocabBook(vocab_book_path=vocab_path,
+                                            vocab_book_name=vocab_book_name,
                                             chinese_setting=chinese_setting,
                                             phonetic_setting=phonetic_setting,
                                             POS_setting=POS_setting,
                                             english_setting=english_setting)
         self._vocab_data = self._ReadVocabBook.read_vocab_book()
-        self._new_words_number = new_words_number
-        self._new_selection_method = new_selection_method
-        self._task_selection_method = task_selection_method
+        self._vocabulary_sessions: List = []
+        random.shuffle(self._vocab_data)
+        for i in range(0, len(self._vocab_data), new_words_number):
+            vocabulary_session = self._vocab_data[i:i + new_words_number]
+            self._vocabulary_sessions.append(vocabulary_session)
+
+        self._state = None
+        self._discount = discount
+        self._should_reset = True
 
         def information_format():
             """
@@ -75,46 +81,37 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def new_initial_state(self):
         """
-        :return: Returns the initial start of game.
+        :return: construct the initial state of the game.
         """
-        pass
+
+    @abc.abstractmethod
+    def reset(self):
+        """
+               :return: Returns the initial state of game, ["observations", "rewards", "discounts"]
+               """
+
+    @abc.abstractmethod
+    def get_time_step(self):
+        """
+               :return: construct  middle state of game, ["observations", "rewards", "discounts"]
+               """
+
+    @abc.abstractmethod
+    def step(self, information):
+        """
+               :return: Returns a TimeStep of game, ["observations", "rewards", "discounts"]
+               """
 
     @property
-    def vocab_data(self) -> List:
+    def vocab_sessions(self) -> List:
         """
-
-        :return: iterable,  vocabulary data
+        :return: vocab randomly split into sessions
         """
-        return self._vocab_data
-
-    @property
-    def new_words_number(self) -> int:
-        """
-
-        :return: the new words number in one session
-        """
-        return self._new_words_number
-
-    @property
-    def new_selection_method(self) -> str:
-        """
-
-        :return: new words selection method
-        """
-        return self._new_selection_method
-
-    @property
-    def task_selection_method(self) -> str:
-        """
-
-        :return: task selection method
-        """
-        return self._task_selection_method
+        return self._vocabulary_sessions
 
     @property
     def vocab_information_format(self) -> List[str]:
         """
-
         :return: vocab information format
         """
         return self._vocab_information_format
@@ -122,28 +119,8 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
     @property
     def book_name(self) -> str:
         """
-
         :return: book name
         """
         return self._vocab_book_name
 
-    # def get_time_step(self):
-    #     """
-    #            老师中的设定是不是应该在环境中，包括老师能看到什么，学生能看到什么？ 包括可用的字母也是环境的？其实感觉老师和环境都可以，因为
-    #            环境其实也就是老师一个人的事
-    #            :return: Returns a state of game, ["observations", "rewards", "discounts"]
-    #            """
-    #     pass
 
-    # def step(self, action):
-    #     """
-    # 环境采取接受了某个动作后， 环境发生变化，以及对这个动作的奖励
-    #            :return: Returns a state of game, ["observations", "rewards", "discounts"]
-    #            """
-    #     pass
-
-    # current ignore this function
-    # @abc.abstractmethod
-    # def make_py_observer(self):
-    #     """Returns an object used for observing game state."""
-    #     pass
