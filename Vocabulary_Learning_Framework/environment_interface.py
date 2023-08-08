@@ -1,12 +1,13 @@
 """
-define  the environment interface
-return TimeStep [observation, reward, discount, step_type]
-observations members :{"vocab_sessions", "current_session_num", "legal_action", "current_player",........}
+Define: the environment interface
+Return TimeStep [observation, reward, discount, step_type]
+Observations members :observations = {"vocab_sessions", "current_session_num", "current_player", "legal_actions",
+                        "vocab_session",.......}
 """
 
 import abc
-from utils.choose_vocab_book import ReadVocabBook
 from typing import List
+from utils.choose_vocab_book import ReadVocabBook
 import random
 
 
@@ -38,6 +39,7 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
                  self._discount: discount
                  self._vocabulary_sessions: randomly split vocabulary data into sessions
                  self._should_reset: the timing to reset the game
+                 self._player_num: the number of players in my game
                 """
 
         self._vocab_book_name: str = vocab_book_name
@@ -56,7 +58,8 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
 
         self._state = None
         self._discount = discount
-        self._should_reset = True
+        self._should_reset: bool = True
+        self._player_num: int = 4
 
         def information_format():
             """
@@ -81,33 +84,26 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def new_initial_state(self):
         """
-        :return: construct the initial state of the game.
-        """
+                :return: construct the initial state of the game. TimeStep
+                """
 
     @abc.abstractmethod
     def reset(self):
         """
-               :return: Returns the initial state of game, ["observations", "rewards", "discounts"]
+               :return: Returns the initial state of game, TimeStep
                """
 
     @abc.abstractmethod
     def get_time_step(self):
         """
-               :return: construct  middle state of game, ["observations", "rewards", "discounts"]
+               :return: construct middle state of game, TimeStep
                """
 
     @abc.abstractmethod
-    def step(self, information):
+    def step(self, action):
         """
-               :return: Returns a TimeStep of game, ["observations", "rewards", "discounts"]
+               :return: Returns a TimeStep of game, TimeStep
                """
-
-    @property
-    def vocab_sessions(self) -> List:
-        """
-        :return: vocab randomly split into sessions
-        """
-        return self._vocabulary_sessions
 
     @property
     def vocab_information_format(self) -> List[str]:

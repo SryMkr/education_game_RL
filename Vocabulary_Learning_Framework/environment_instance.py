@@ -1,5 +1,5 @@
 """
-game environment instance
+environment instance
 """
 from environment_interface import EnvironmentInterface
 from state_instance import VocabSpellState
@@ -61,17 +61,26 @@ class VocabSpellGame(EnvironmentInterface):
                          english_setting,
                          new_words_number)
 
-    # initialize the state of game,实例化状态对象，所以在环境中可以直接调用状态的属性
+    # initialize the state of game, to read the state attributes
     def new_initial_state(self):
-        return VocabSpellState()
+        return VocabSpellState(self._vocabulary_sessions)
 
     def reset(self):
         self._state = self.new_initial_state()
         self._should_reset = False
-        # initialize the observations, and read from state object,也要读取所有的历史信息
-        observations = {"vocab_sessions": self.vocab_sessions, "current_session_num": self._state.current_session_num,
-                        "legal_action": self._state.legal_action, "current_player": self._state.current_player,
-                        "vocab_session": None}
+        # initialize the observations, and read from state object, need to be finished
+        observations = {"vocab_sessions": self._state.vocab_sessions,
+                        "current_session_num": self._state.current_session_num,
+                        "vocab_session": None, "legal_actions": [], "current_player": self._state.current_player,
+                        "condition": self._state.condition, "answer": self._state.answer,
+                        "answer_length": self._state.answer_length, "student_spelling": self._state.stu_spelling,
+                        "letter_feedback": self._state.letter_feedback, "accuracy": self._state.accuracy,
+                        "completeness": self._state.completeness,
+                        }
+
+        for player_ID in range(self._player_num):
+            observations["legal_actions"].append(self._state.legal_actions(player_ID))
+
         return TimeStep(
             observations=observations,
             rewards=None,
@@ -81,10 +90,19 @@ class VocabSpellGame(EnvironmentInterface):
     def get_time_step(self):
         # 这里必须可以读取改变后的state的所有信息，return TimeStep
         # 而state的变化，和get_time_step共同封装到step，和reset中
-        # 如何动态创建字典里的元素，而不需要自己添加？,如何一开始就保存好字典中需要的所有字段
-        observations = {"vocab_sessions": self.vocab_sessions, "current_session_num": self._state.current_session_num,
-                        "legal_action": self._state.legal_action, "current_player": self._state.current_player,
-                        "vocab_session": self._state.vocab_session}
+
+        observations = {"vocab_sessions": self._state.vocab_sessions,
+                        "current_session_num": self._state.current_session_num,
+                        "current_player": self._state.current_player, "legal_actions": [],
+                        "vocab_session": self._state.vocab_session, "condition": self._state.condition,
+                        "answer": self._state.answer,
+                        "answer_length": self._state.answer_length, "student_spelling": self._state.stu_spelling,
+                        "letter_feedback": self._state.letter_feedback, "accuracy": self._state.accuracy,
+                        "completeness": self._state.completeness,
+                        }
+
+        for player_ID in range(self._player_num):
+            observations["legal_actions"].append(self._state.legal_actions(player_ID))
 
         rewards = self._state.rewards  # how to define the rewards?!!!!!!!!!
         discounts = self._discount
@@ -92,15 +110,16 @@ class VocabSpellGame(EnvironmentInterface):
         self._should_reset = step_type == StepType.LAST  # True, if game terminate
         if step_type == StepType.LAST:
             pass
-            # 还要记录包含所有的信息，那么在state中应该有个history参数
+            # 还要记录包含所有的信息，那么在state中应该有个history参数 state._history
         return TimeStep(
             observations=observations,
             rewards=rewards,
             discounts=discounts,
             step_type=step_type)
 
-    def step(self, information):
+    def step(self, action):
         if self._should_reset:
             return self.reset()
-        self._state.apply_information(information)  # state对象复杂接收action，并引起一些其他参数的变化
+        self._state.apply_action(action)  # apply action
+        # construct new state
         return self.get_time_step()
