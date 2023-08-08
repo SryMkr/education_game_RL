@@ -16,6 +16,7 @@ class VocabSpellState(StateInterface):
             self._legal_actions[1].append(len(''.join(task[1].split())))
 
     def spilt_task(self, action):
+        """get the 'condition' and word_length for student, and answer for examiner """
         for task in self._vocab_session:
             if len(''.join(task[1].split())) == action:
                 self._condition = task[0]
@@ -27,6 +28,7 @@ class VocabSpellState(StateInterface):
         self._stu_spelling = [self._LETTERS[action] for action in actions]
 
     def acc_com(self):
+        """ calculate student spelling' completeness and accuracy """
         self._completeness = round(1 - Levenshtein.distance(''.join(self._stu_spelling),
                                                             ''.join(self._answer.split(' '))) / self._answer_length, 2)
         self._accuracy = round(Levenshtein.ratio(''.join(self._stu_spelling), ''.join(self._answer.split(' '))), 2)

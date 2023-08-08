@@ -1,5 +1,9 @@
 """
 environment instance
+基本上就是有两个方法： step，reset
+上述每一种方法分为两步：（1） 将action应用到state中使得state发生变化，
+                    （2）需要使用从新的state中构造新的TimeStep， step使用get_time_step, reset使用new_initial_state
+目的都是为了构造一个TimeStep,里面包含环境中的所有信息，然后让相应的agent做选择
 """
 from environment_interface import EnvironmentInterface
 from state_instance import VocabSpellState
@@ -8,7 +12,7 @@ import enum
 
 
 class StepType(enum.Enum):
-    """Defines the status of a `TimeStep` within vocabulary book."""
+    """Defines the status of a `TimeStep`."""
 
     FIRST = 0  # Denotes the initial `TimeStep`, learn start.
     MID = 1  # Denotes any `TimeStep` that is not FIRST or LAST.
@@ -68,10 +72,11 @@ class VocabSpellGame(EnvironmentInterface):
     def reset(self):
         self._state = self.new_initial_state()
         self._should_reset = False
-        # initialize the observations, and read from state object, need to be finished
+        # initialize the observations, and read from state object
         observations = {"vocab_sessions": self._state.vocab_sessions,
                         "current_session_num": self._state.current_session_num,
-                        "vocab_session": None, "legal_actions": [], "current_player": self._state.current_player,
+                        "vocab_session": self._state.vocab_session, "legal_actions": [],
+                        "current_player": self._state.current_player,
                         "condition": self._state.condition, "answer": self._state.answer,
                         "answer_length": self._state.answer_length, "student_spelling": self._state.stu_spelling,
                         "letter_feedback": self._state.letter_feedback, "accuracy": self._state.accuracy,
@@ -88,9 +93,7 @@ class VocabSpellGame(EnvironmentInterface):
             step_type=StepType.FIRST)
 
     def get_time_step(self):
-        # 这里必须可以读取改变后的state的所有信息，return TimeStep
         # 而state的变化，和get_time_step共同封装到step，和reset中
-
         observations = {"vocab_sessions": self._state.vocab_sessions,
                         "current_session_num": self._state.current_session_num,
                         "current_player": self._state.current_player, "legal_actions": [],
@@ -110,7 +113,7 @@ class VocabSpellGame(EnvironmentInterface):
         self._should_reset = step_type == StepType.LAST  # True, if game terminate
         if step_type == StepType.LAST:
             pass
-            # 还要记录包含所有的信息，那么在state中应该有个history参数 state._history
+            # 还要记录包含所有的信息，那么在state中应该有个history参数 state._history!!!!!!!!!!!!!!!!!
         return TimeStep(
             observations=observations,
             rewards=rewards,
@@ -120,6 +123,6 @@ class VocabSpellGame(EnvironmentInterface):
     def step(self, action):
         if self._should_reset:
             return self.reset()
-        self._state.apply_action(action)  # apply action
-        # construct new state
+        self._state.apply_action(action)  # (1) apply action
+        # (2) construct new TimeStep
         return self.get_time_step()

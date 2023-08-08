@@ -11,18 +11,22 @@ import random
 class SessionCollectorPlayer(SessionCollectorInterface):
     def __init__(self,
                  player_id,
-                 player_name):
+                 player_name,
+                 policy):
         super().__init__(player_id,
-                         player_name)
+                         player_name,
+                         policy)
 
     def step(self, time_step) -> int:
         """
                     :return: the action index
                     """
-
+        action = 0
         legal_actions = time_step.observations["legal_actions"][self.player_id]
-        action = random.choice(legal_actions)  # random
-        # action = legal_actions[0] # sequential
+        if self._policy == 'random':
+            action = random.choice(legal_actions)  # random
+        elif self._policy == 'sequential':
+            action = legal_actions[0]  # sequential
         return action
 
 
@@ -37,18 +41,18 @@ class PresentWordPlayer(PresentWordInterface):
                          policy)
 
     def action_policy(self, time_step):
-
+        action = 0
         legal_actions = time_step.observations["legal_actions"][self.player_id]
         # 用四种不同的方式选择单词的长度，选择了以后要删除
         if self._policy == 'random':
-            self._action = random.choice(legal_actions)  # 反正都是都是随机，根本无所谓
+            action = random.choice(legal_actions)  # 反正都是都是随机，根本无所谓
         if self._policy == 'sequential':
-            self._action = legal_actions[0]  # 直接选择第一个就可以
+            action = legal_actions[0]  # 直接选择第一个就可以
         if self._policy == 'easy_to_hard':
-            self._action = sorted(legal_actions)[0]  # 按照长度从简单到难做一个排序，然后选择第一个
+            action = sorted(legal_actions)[0]  # 按照长度从简单到难做一个排序，然后选择第一个
         if self._policy == 'DDA':  # RL!!!!!!!!! need to be finished
             pass
-        return self._action
+        return action
 
     def step(self, time_step):
         action = self.action_policy(time_step)
@@ -86,7 +90,7 @@ class StudentPlayer(StudentInterface):
 
     def stu_learn(self, time_step) -> None:
         """
-        update n-grams based on feedback
+        update n-grams based on feedback!!!!!!!!!!!!!!!!
         """
 
     def step(self, time_step):

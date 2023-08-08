@@ -8,14 +8,10 @@
                        (observation->action probabilities->action)
     compared with the (uniform_random) agent that have different policy
 
-
-思考将agent，可以分为直接初始化，然后结合策略，选择动作的道路
-定义一下这几类agents
 """
 
 import abc
-from typing import List, Tuple, Dict
-import random
+from typing import List
 
 
 class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
@@ -45,7 +41,7 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
            Arguments:
              time_step: an instance of rl_environment.TimeStep.
            Returns:
-             A `StepOutput` for the current `time_step`. (an action or information) !!!!!!!!!!!
+             A `StepOutput` for the current `time_step`. (action or actions) !!!!!!!!!!!
            """
 
     @property
@@ -64,17 +60,23 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
 
 
 class SessionCollectorInterface(AgentAbstractBaseClass):
-    """
-    是为了组合学习新单词和组合旧单词的功能
+    """session player 是为了组合学习新单词和组合旧单词的功能
+    legal actions: the number of sessions,
+    Observation：legal actions, List[int]
+    Policy：random, sequential
+    Output：action: the session index
+    State: read the session data based on the session index
     """
 
     @abc.abstractmethod
     def __init__(self,
                  player_id: int,
-                 player_name: str
+                 player_name: str,
+                 policy: str
                  ):
         super().__init__(player_id, player_name)
         """Initializes TaskCollector agent."""
+        self._policy = policy
 
     @abc.abstractmethod
     def step(self, time_step) -> int:
@@ -104,11 +106,10 @@ class PresentWordInterface(AgentAbstractBaseClass):
         self._policy: str, the type of policy
         '''
         self._policy = policy
-        self._action: int = 0
 
     @abc.abstractmethod
     def action_policy(self, time_step):
-        """ StepOutput = collections.namedtuple("step_output", ["action", "probabilities"]) """
+        """ the length of task """
 
     @abc.abstractmethod
     def step(self, time_step) -> int:
@@ -122,12 +123,11 @@ class PresentWordInterface(AgentAbstractBaseClass):
 class StudentInterface(AgentAbstractBaseClass):
     """ optional information:  available letter,  ['蜘蛛 n s p aɪ d ɝ', 's p i d e r']
 
-    今天先实现一个随机的拼写，然后把与环境的交互定义好，完成一次整体的流程
     legal actions: the index of [a,b,c,d,e.................x,y,z]
     Observation：time step [conditions(chinese,phonetic,POS)，answer_length, available_letter(optional), accuracy, letter_mark]
-    policy：random, perfect, forgetting
-    output：actions: the index of [a,b,c,d,e.................x,y,z], for example, [2,3,4,5,6,2,1]
-    State: provide spelling
+    Policy：random, perfect, forgetting
+    Output：actions: the index of [a,b,c,d,e.................x,y,z], for example, [2,3,4,5,6,2,1]
+    State: convert index to letter
     """
 
     @abc.abstractmethod
@@ -140,7 +140,6 @@ class StudentInterface(AgentAbstractBaseClass):
         """Initializes student agent.
 
         Args:
-             self._actions: the index of alphabet
              self._policy, student type: random, forget, perfect
         """
         self._policy: str = policy
@@ -154,12 +153,12 @@ class StudentInterface(AgentAbstractBaseClass):
     @abc.abstractmethod
     def stu_learn(self, time_step) -> None:
         """
-        update n-grams based on feedback
+        update n-grams based on feedback!!!!!!!!!!!!!!! need to be finished
         """
 
     @abc.abstractmethod
     def step(self, time_step) -> List[int]:
-        """:returns actions"""
+        """:returns actions!!!!!!!!!!!!!!!!!!!"""
 
 
 class ExaminerInterface(AgentAbstractBaseClass):
@@ -167,7 +166,7 @@ class ExaminerInterface(AgentAbstractBaseClass):
         Legal actions: [0，1], where 0 presents wrong, 1 denotes right
         Observation：TimeStep [student_spelling，answer]
         Policy：no policy
-        Output：actions: for example, [0,1,1,0,1,1,1]
+        Output：actions: for example, [0,1,1,0,1,1,1]!!!!!!!!!!!!!!!!
         State: calculate the accuracy and completeness
     """
     def __init__(self,

@@ -1,8 +1,9 @@
 """
 Define: the environment interface
-Return TimeStep [observation, reward, discount, step_type]
-Observations members :observations = {"vocab_sessions", "current_session_num", "current_player", "legal_actions",
-                        "vocab_session",.......}
+Return: TimeStep [observation, reward (uncertain?), discount(uncertain?), step_type]
+Observation members :observation = {"vocab_sessions", "current_session_num", "vocab_session", "legal_actions",
+                                    "current_player", "condition", "answer", "answer_length", "student_spelling",
+                                    "letter_feedback", "accuracy", "completeness"}
 """
 
 import abc
@@ -27,17 +28,18 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
                  ):
         """
         :args
-                 vocab_path: the vocab data path
+                 vocab_path: the vocab data path for load vocabulary data
                  vocab_book_name: options [CET4, CET6], the book you want use
                  chinese_setting=True, do you want chinese?
                  phonetic_setting=True, do you want phonetic?
                  POS_setting=True, do you want POS?
                  english_setting=True, must be true
-                 new_words_number: the number of words in one session
+                 new_words_number: the number of words per session
 
-                 self._state: store the information state from state object
-                 self._discount: discount
                  self._vocabulary_sessions: randomly split vocabulary data into sessions
+                 self._state: read necessary information from state object
+                 self._discount: discount !!!!!!!!!!!!!!!!!!!!!!!!!!
+
                  self._should_reset: the timing to reset the game
                  self._player_num: the number of players in my game
                 """
@@ -61,26 +63,6 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
         self._should_reset: bool = True
         self._player_num: int = 4
 
-        def information_format():
-            """
-            :return: the information format is also the order of your data
-            """
-            __information_list = []
-            if chinese_setting:
-                __information_list.append('chinese')
-
-            if POS_setting:
-                __information_list.append('pos')
-
-            if phonetic_setting:
-                __information_list.append('phonetic')
-
-            if english_setting:
-                __information_list.append('english')
-            return __information_list
-
-        self._vocab_information_format = information_format()
-
     @abc.abstractmethod
     def new_initial_state(self):
         """
@@ -90,33 +72,26 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def reset(self):
         """
-               :return: Returns the initial state of game, TimeStep
+               :return: Returns the initial state of game. TimeStep
                """
 
     @abc.abstractmethod
     def get_time_step(self):
         """
-               :return: construct middle state of game, TimeStep
+               :return: construct middle state of game. TimeStep
                """
 
     @abc.abstractmethod
     def step(self, action):
         """
-               :return: Returns a TimeStep of game, TimeStep
+               :return: Returns middle TimeStep of game, TimeStep
                """
-
-    @property
-    def vocab_information_format(self) -> List[str]:
-        """
-        :return: vocab information format
-        """
-        return self._vocab_information_format
 
     @property
     def book_name(self) -> str:
         """
-        :return: book name
-        """
+                :return: book name
+                """
         return self._vocab_book_name
 
 
