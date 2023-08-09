@@ -31,24 +31,5 @@ while not time_step.last():  # not terminate
     agent_output = agents[player_id].step(time_step)  # action
     print(agent_output)
     time_step = env.step(agent_output)  # current TimeStep
-    print(time_step)
-    player_id = time_step.observations["current_player"]  # current player
-    print(player_id)
-    agent_output = agents[player_id].step(time_step)   # action
-    print(agent_output)
-    time_step = env.step(agent_output)  # current TimeStep
-    print(time_step)
-    player_id = time_step.observations["current_player"]  # current player
-    print(player_id)
-    agent_output = agents[player_id].step(time_step)  # action
-    print(agent_output)
-    time_step = env.step(agent_output)  # current TimeStep
-    print(time_step)
-    player_id = time_step.observations["current_player"]  # current player
-    print(player_id)
-    agent_output = agents[player_id].step(time_step)   # action
-    print(agent_output)
-    time_step = env.step(agent_output)  # current TimeStep
-    print(time_step)
-    break
 
+print(time_step.observations['history'])

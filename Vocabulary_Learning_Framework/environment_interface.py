@@ -3,7 +3,7 @@ Define: the environment interface
 Return: TimeStep [observation, reward (uncertain?), discount(uncertain?), step_type]
 Observation members :observation = {"vocab_sessions", "current_session_num", "vocab_session", "legal_actions",
                                     "current_player", "condition", "answer", "answer_length", "student_spelling",
-                                    "letter_feedback", "accuracy", "completeness"}
+                                    "letter_feedback", "accuracy", "completeness", "history"}
 """
 
 import abc
@@ -34,8 +34,8 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
                  phonetic_setting=True, do you want phonetic?
                  POS_setting=True, do you want POS?
                  english_setting=True, must be true
-                 new_words_number: the number of words per session
 
+                 new_words_number: the number of words per session
                  self._vocabulary_sessions: randomly split vocabulary data into sessions
                  self._state: read necessary information from state object
                  self._discount: discount !!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -66,13 +66,13 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def new_initial_state(self):
         """
-                :return: construct the initial state of the game. TimeStep
+                :return: initialize the state of the game
                 """
 
     @abc.abstractmethod
     def reset(self):
         """
-               :return: Returns the initial state of game. TimeStep
+               :return: construct and return the initial state of game. TimeStep
                """
 
     @abc.abstractmethod
@@ -84,14 +84,6 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def step(self, action):
         """
-               :return: Returns middle TimeStep of game, TimeStep
+               :return: (1) apply_action,(2) construct middle state of game (3) returns TimeStep
                """
-
-    @property
-    def book_name(self) -> str:
-        """
-                :return: book name
-                """
-        return self._vocab_book_name
-
 

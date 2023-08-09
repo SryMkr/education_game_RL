@@ -1,7 +1,7 @@
 """
 define the vocabulary spelling state
 
-state provide whole necessary information to construct the TimeStep of environment
+state provide whole necessary information to help env construct the TimeStep
 
 """
 
@@ -36,7 +36,7 @@ class StateInterface(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __init__(self, vocab_sessions):
         self._vocab_sessions = vocab_sessions
-        self._current_session_num: int = 0
+        self._current_session_num: int = 1
         self._game_over: bool = False
         self._current_player: int = 0
         self._rewards: List[int] = []
@@ -58,6 +58,8 @@ class StateInterface(metaclass=abc.ABCMeta):
         self._letter_feedback: List[int] = []
         self._accuracy: float = 0.0
         self._completeness: float = 0.0
+
+        self._history = []  # what information does the history have?,搞个准确度和完整度吧
 
     @property
     def current_player(self) -> int:
@@ -164,3 +166,10 @@ class StateInterface(metaclass=abc.ABCMeta):
         :return: student spelling completeness
         """
         return self._completeness
+
+    @property
+    def history(self) -> List:
+        """
+        :return: return the history!!!!!!!!!!!!!!!!!!!!!!!!
+        """
+        return self._history

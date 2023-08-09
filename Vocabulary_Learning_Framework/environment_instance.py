@@ -43,9 +43,6 @@ class TimeStep(collections.namedtuple("TimeStep", ["observations", "rewards", "d
     def last(self):
         return self.step_type == StepType.LAST
 
-    def current_player(self):
-        return self.observations["current_player"]
-
 
 class VocabSpellGame(EnvironmentInterface):
     def __init__(self,
@@ -73,15 +70,14 @@ class VocabSpellGame(EnvironmentInterface):
         self._state = self.new_initial_state()
         self._should_reset = False
         # initialize the observations, and read from state object
-        observations = {"vocab_sessions": self._state.vocab_sessions,
-                        "current_session_num": self._state.current_session_num,
-                        "vocab_session": self._state.vocab_session, "legal_actions": [],
+        observations = {"vocab_sessions": None,
+                        "current_session_num": None,
+                        "vocab_session": None, "legal_actions": [],
                         "current_player": self._state.current_player,
-                        "condition": self._state.condition, "answer": self._state.answer,
-                        "answer_length": self._state.answer_length, "student_spelling": self._state.stu_spelling,
-                        "letter_feedback": self._state.letter_feedback, "accuracy": self._state.accuracy,
-                        "completeness": self._state.completeness,
-                        }
+                        "condition": None, "answer": None,
+                        "answer_length": None, "student_spelling": None,
+                        "letter_feedback": None, "accuracy": None,
+                        "completeness": None, "history": None}
 
         for player_ID in range(self._player_num):
             observations["legal_actions"].append(self._state.legal_actions(player_ID))
@@ -93,7 +89,6 @@ class VocabSpellGame(EnvironmentInterface):
             step_type=StepType.FIRST)
 
     def get_time_step(self):
-        # 而state的变化，和get_time_step共同封装到step，和reset中
         observations = {"vocab_sessions": self._state.vocab_sessions,
                         "current_session_num": self._state.current_session_num,
                         "current_player": self._state.current_player, "legal_actions": [],
@@ -101,7 +96,7 @@ class VocabSpellGame(EnvironmentInterface):
                         "answer": self._state.answer,
                         "answer_length": self._state.answer_length, "student_spelling": self._state.stu_spelling,
                         "letter_feedback": self._state.letter_feedback, "accuracy": self._state.accuracy,
-                        "completeness": self._state.completeness,
+                        "completeness": self._state.completeness, "history": self._state.history
                         }
 
         for player_ID in range(self._player_num):
@@ -123,6 +118,6 @@ class VocabSpellGame(EnvironmentInterface):
     def step(self, action):
         if self._should_reset:
             return self.reset()
-        self._state.apply_action(action)  # (1) apply action
+        self._state.apply_action(action)  # (1) apply action/actions
         # (2) construct new TimeStep
         return self.get_time_step()
