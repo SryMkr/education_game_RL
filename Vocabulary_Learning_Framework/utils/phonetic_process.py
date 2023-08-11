@@ -1,6 +1,6 @@
 """
-This file is to get the and CMU and IPA phonetic. The phonetic is one of the important vocabulary information
-NLTK and SpaCy can possibly label the ‘part of speech’ information
+This file is to get the and CMU and IPA phonetic which is one of the important vocabulary information.
+NLTK and SpaCy library can possibly label the ‘part of speech’ information.
 """
 from nltk.corpus import cmudict
 

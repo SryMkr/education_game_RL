@@ -5,9 +5,7 @@ purposes: (1)provide the interface to build costuming data
 
 1: 不同单词书有其各自的单词，但是【句子，图片，视频，发音】都可以共用，放在各自的总文件夹下，学习任何一个单词都可以直接调用
 2：当前项目为了简化，只处理【中文，音标，词性 英文拼写】，其他的信息提供调用方法
-
-Simon说会议的主要重点是：（1）建立interface （2）定义好用的类型 （3）history information是包括过去所有的单词信息
-
+3: 重要知识点，正则表达式在自然语言处理的时候必须要用
 """
 import re
 import io
