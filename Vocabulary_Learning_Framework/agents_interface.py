@@ -11,7 +11,7 @@
 """
 
 import abc
-from typing import List
+from typing import List, Tuple, Dict
 
 
 class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
@@ -60,9 +60,9 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
 
 
 class SessionCollectorInterface(AgentAbstractBaseClass):
-    """session player 是为了组合学习新单词和组合旧单词的功能
+    """session player
     legal actions: the number of sessions,
-    Observation：legal actions, List[int]
+    Observation：legal actions： List[int]
     Policy：random, sequential
     Output：action: the session index
     State: read the session data based on the session index
@@ -81,7 +81,7 @@ class SessionCollectorInterface(AgentAbstractBaseClass):
     @abc.abstractmethod
     def step(self, time_step) -> int:
         """
-                    :return: the action index
+                    :return: the session index
                     """
         pass
 
@@ -89,11 +89,12 @@ class SessionCollectorInterface(AgentAbstractBaseClass):
 class PresentWordInterface(AgentAbstractBaseClass):
     """ select one word from session data, there are four method (1) sequential (2) random (3) easy to hard (4)DDA
     legal actions: the word length in one session,
-    Observation：TimeStep [session data，accuracy, feedback]
+    Observation：TimeStep [session data，examiner feedback, last word difficulty]
     Policy：random, sequential, easy to hard, dynamic difficulty adjustment
-    Output：action: the selected word length
+    Output：action: the selected word length (difficulty level)
     State: select a task from session data
     """
+
     @abc.abstractmethod
     def __init__(self,
                  player_id: int,
@@ -108,24 +109,31 @@ class PresentWordInterface(AgentAbstractBaseClass):
         self._policy = policy
 
     @abc.abstractmethod
-    def action_policy(self, time_step):
+    def define_difficulty(self, time_step) -> Dict[int, str]:
+        """tutor agent define the difficulty of each task
+        difficulty definition: the length of word
+        """
+        pass
+
+    @abc.abstractmethod
+    def action_policy(self, time_step) -> str:
         """ the length of task """
 
     @abc.abstractmethod
-    def step(self, time_step) -> int:
+    def step(self, time_step) -> List[str]:
         """
         if correctly answer at hardest test level, the agent need to remove the task from session
 
-        :returns the action: the length of task, integer"""
+        :returns the action: the task, str"""
         pass
 
 
 class StudentInterface(AgentAbstractBaseClass):
-    """ optional information:  available letter,  ['蜘蛛 n s p aɪ d ɝ', 's p i d e r']
+    """ optional information:  [available letter],, length of answer,  ['s p aɪ d ɝ']
 
     legal actions: the index of [a,b,c,d,e.................x,y,z]
-    Observation：time step [conditions(chinese,phonetic,POS)，answer_length, available_letter(optional), accuracy, letter_mark]
-    Policy：random, perfect, forgetting
+    Observation：time step [[phonetic，answer_length, available_letter], [accuracy, letter_mark]]
+    Policy：random, excellent, forgetting
     Output：actions: the index of [a,b,c,d,e.................x,y,z], for example, [2,3,4,5,6,2,1]
     State: convert index to letter
     """
@@ -143,6 +151,7 @@ class StudentInterface(AgentAbstractBaseClass):
              self._policy, student type: random, forget, perfect
         """
         self._policy: str = policy
+        self.position_condition: List[str] = []
 
     @abc.abstractmethod
     def stu_spell(self, time_step) -> List[int]:
@@ -153,7 +162,7 @@ class StudentInterface(AgentAbstractBaseClass):
     @abc.abstractmethod
     def stu_learn(self, time_step) -> None:
         """
-        update n-grams based on feedback!!!!!!!!!!!!!!! need to be finished
+        update table based on feedback!!!!!!!!!!!!!!! need to be finished
         """
 
     @abc.abstractmethod
@@ -169,6 +178,7 @@ class ExaminerInterface(AgentAbstractBaseClass):
         Output：actions: for example, [0,1,1,0,1,1,1]!!!!!!!!!!!!!!!!
         State: calculate the accuracy and completeness
     """
+
     def __init__(self,
                  player_id: int,
                  player_name: str):
@@ -177,7 +187,7 @@ class ExaminerInterface(AgentAbstractBaseClass):
         """Initializes examiner agent"""
 
     @abc.abstractmethod
-    def step(self, time_step) -> List[int]:
+    def step(self, time_step) -> Tuple[List[int], float, float]:
         """
         :returns the actions list, consisting of 0 and 1
         """

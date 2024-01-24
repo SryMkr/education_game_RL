@@ -86,4 +86,9 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
         """
                :return: (1) apply_action,(2) construct middle state of game (3) returns TimeStep
                """
-
+    @property
+    def vocabulary_data(self):
+        """
+                       :return: vocabulary data
+                       """
+        return self._vocab_data

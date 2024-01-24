@@ -6,7 +6,7 @@ state provide whole necessary information to help env construct the TimeStep
 """
 
 import abc
-from typing import List
+from typing import List, Tuple
 
 
 class StateInterface(metaclass=abc.ABCMeta):
@@ -39,7 +39,7 @@ class StateInterface(metaclass=abc.ABCMeta):
         self._current_session_num: int = 1
         self._game_over: bool = False
         self._current_player: int = 0
-        self._rewards: List[int] = []
+        self._rewards: int = 0
         self._vocab_session: List[List[str]] = []
         self._legal_actions: List = [[i for i in range(len(self._vocab_sessions))],
                                      [],
@@ -55,10 +55,7 @@ class StateInterface(metaclass=abc.ABCMeta):
 
         self._stu_spelling: List[str] = []
 
-        self._letter_feedback: List[int] = []
-        self._accuracy: float = 0.0
-        self._completeness: float = 0.0
-
+        self._examiner_feedback: Tuple[List[int], float, float] = tuple()
         self._history = []  # what information does the history have?,搞个准确度和完整度吧
 
     @property
@@ -90,6 +87,14 @@ class StateInterface(metaclass=abc.ABCMeta):
         :return: Returns the (player ID) of the next player.
         """
 
+    @abc.abstractmethod
+    def reward_function(self, information) -> int:
+        """
+        apply action, and store necessary information
+        :return: Returns the (player ID) of the next player.
+        """
+        return self._rewards
+
     @property
     def is_terminal(self) -> bool:
         """
@@ -98,7 +103,7 @@ class StateInterface(metaclass=abc.ABCMeta):
         return self._game_over
 
     @property
-    def rewards(self) -> List[int]:
+    def rewards(self) -> int:
         """
         :return:  the rewards .
         """
@@ -147,25 +152,11 @@ class StateInterface(metaclass=abc.ABCMeta):
         return self._stu_spelling
 
     @property
-    def letter_feedback(self) -> List[int]:
+    def examiner_feedback(self) -> Tuple[List[int], float, float]:
         """
         :return: feedback per letter
         """
-        return self._letter_feedback
-
-    @property
-    def accuracy(self) -> float:
-        """
-        :return: student spelling accuracy
-        """
-        return self._accuracy
-
-    @property
-    def completeness(self) -> float:
-        """
-        :return: student spelling completeness
-        """
-        return self._completeness
+        return self._examiner_feedback
 
     @property
     def history(self) -> List:

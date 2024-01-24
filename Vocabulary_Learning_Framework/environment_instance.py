@@ -12,7 +12,7 @@ import enum
 
 
 class StepType(enum.Enum):
-    """Defines the status of a `TimeStep`."""
+    """Defines the status of a `TimeStep`, the state of game"""
 
     FIRST = 0  # Denotes the initial `TimeStep`, learn start.
     MID = 1  # Denotes any `TimeStep` that is not FIRST or LAST.
@@ -32,7 +32,7 @@ class TimeStep(collections.namedtuple("TimeStep", ["observations", "rewards", "d
     """Returned with every call to `step` and `reset`.
 
   """
-    __slots__ = ()
+    __slots__ = ()  # constrict the attributes of class
 
     def first(self):
         return self.step_type == StepType.FIRST
@@ -45,6 +45,7 @@ class TimeStep(collections.namedtuple("TimeStep", ["observations", "rewards", "d
 
 
 class VocabSpellGame(EnvironmentInterface):
+    """ create the interactive env"""
     def __init__(self,
                  vocabulary_book_path,
                  vocabulary_book_name,
@@ -64,6 +65,7 @@ class VocabSpellGame(EnvironmentInterface):
 
     # initialize the state of game, to read the state attributes
     def new_initial_state(self):
+        """ calling the state, and pass the vocabulary sessions"""
         return VocabSpellState(self._vocabulary_sessions)
 
     def reset(self):
@@ -95,11 +97,11 @@ class VocabSpellGame(EnvironmentInterface):
                         "vocab_session": self._state.vocab_session, "condition": self._state.condition,
                         "answer": self._state.answer,
                         "answer_length": self._state.answer_length, "student_spelling": self._state.stu_spelling,
-                        "letter_feedback": self._state.letter_feedback, "accuracy": self._state.accuracy,
-                        "completeness": self._state.completeness, "history": self._state.history
+                        "examiner_feedback": self._state.examiner_feedback, "history": self._state.history
                         }
 
         for player_ID in range(self._player_num):
+            """每个agent的动作不同，所以需要单独添加"""
             observations["legal_actions"].append(self._state.legal_actions(player_ID))
 
         rewards = self._state.rewards  # how to define the rewards?!!!!!!!!!
