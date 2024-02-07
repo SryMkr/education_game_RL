@@ -3,7 +3,9 @@ Define: the environment interface
 Return: TimeStep [observation, reward (uncertain?), discount(uncertain?), step_type]
 Observation members :observation = {"vocab_sessions", "current_session_num", "vocab_session", "legal_actions",
                                     "current_player", "condition", "answer", "answer_length", "student_spelling",
-                                    "letter_feedback", "accuracy", "completeness", "history"}
+                                    "examiner_feedback", "history"}
+ENV： 总结state的所有信息，得到action返回一个state，而state是根据state的出来的，其实就是把ENV分成了两部分，一部分得到动作并改变环境
+这个部分主要由state完成，另外一部分是收集执行动作以后收集状态的变化供给agent训练策略以及选择动作
 """
 
 import abc
@@ -56,7 +58,7 @@ class EnvironmentInterface(metaclass=abc.ABCMeta):
         random.shuffle(self._vocab_data)
         for i in range(0, len(self._vocab_data), new_words_number):
             vocabulary_session = self._vocab_data[i:i + new_words_number]
-            self._vocabulary_sessions.append(vocabulary_session)
+            self._vocabulary_sessions.append(vocabulary_session)  # 环境直接就把单词分组了
 
         self._state = None
         self._discount = discount

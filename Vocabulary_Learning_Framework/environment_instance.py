@@ -78,10 +78,10 @@ class VocabSpellGame(EnvironmentInterface):
                         "current_player": self._state.current_player,
                         "condition": None, "answer": None,
                         "answer_length": None, "student_spelling": None,
-                        "letter_feedback": None, "accuracy": None,
-                        "completeness": None, "history": None}
+                        "examiner_feedback": None, "history": None}
 
         for player_ID in range(self._player_num):
+            # 动作是另外添加的
             observations["legal_actions"].append(self._state.legal_actions(player_ID))
 
         return TimeStep(
@@ -106,7 +106,7 @@ class VocabSpellGame(EnvironmentInterface):
 
         rewards = self._state.rewards  # how to define the rewards?!!!!!!!!!
         discounts = self._discount
-        step_type = StepType.LAST if self._state.is_terminal else StepType.MID
+        step_type = StepType.LAST if self._state.is_terminal else StepType.MID  # 指示当前游戏状态
         self._should_reset = step_type == StepType.LAST  # True, if game terminate
         if step_type == StepType.LAST:
             pass

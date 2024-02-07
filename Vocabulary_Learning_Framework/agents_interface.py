@@ -1,11 +1,11 @@
 """
 1: agent base abstract class, and per agent interface
-2: initial some parameters that will be regularly used in agents instance
+2: initialize some parameters that will be regularly used in agents instance
 # In a nutshell: An agent normally has
     (1) attributes: player_ID, player_Name, **agent_specific_kwargs, all implemented in __init__ function
     (2) step function: A: parameter: get the observation of environment time step
                        B: a policy get the observation and provide the action probabilities, then agent select an action based on probabilities
-                       (observation->action probabilities->action)
+                       (Environment (observation, reward)-> agent ((policy function -> action probabilities)->action))
     compared with the (uniform_random) agent that have different policy
 
 """
@@ -27,6 +27,7 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
                 Args:
                     player_id: zero-based integer，for index agent
                     player_name: string.
+                    policy: optional, some agent probably doest have policy function
                     **agent_specific_kwargs: optional extra args.
                 """
         self._player_id: int = player_id
@@ -35,8 +36,8 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def step(self, time_step):
         """
-           Agents should handle `time_step` and extract the required part of the
-           `time_step.observations` field.
+           Agents should observe the `time_step` from env and extract the required part of the
+           `time_step.observations` field and reward field.
 
            Arguments:
              time_step: an instance of rl_environment.TimeStep.
@@ -61,10 +62,10 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
 
 class SessionCollectorInterface(AgentAbstractBaseClass):
     """session player
-    legal actions: the number of sessions,
+    legal actions: List[int]: the index of sessions,
     Observation：legal actions： List[int]
     Policy：random, sequential
-    Output：action: the session index
+    Output：action: the chosen session index
     State: read the session data based on the session index
     """
 
@@ -87,8 +88,8 @@ class SessionCollectorInterface(AgentAbstractBaseClass):
 
 
 class PresentWordInterface(AgentAbstractBaseClass):
-    """ select one word from session data, there are four method (1) sequential (2) random (3) easy to hard (4)DDA
-    legal actions: the word length in one session,
+    """ select one task from session data, there are four method (1) sequential (2) random (3) easy to hard (4)DDA
+    legal actions: the task[phonetic, word] in one session,
     Observation：TimeStep [session data，examiner feedback, last word difficulty]
     Policy：random, sequential, easy to hard, dynamic difficulty adjustment
     Output：action: the selected word length (difficulty level)
@@ -117,13 +118,11 @@ class PresentWordInterface(AgentAbstractBaseClass):
 
     @abc.abstractmethod
     def action_policy(self, time_step) -> str:
-        """ the length of task """
+        """ return the task """
 
     @abc.abstractmethod
     def step(self, time_step) -> List[str]:
         """
-        if correctly answer at hardest test level, the agent need to remove the task from session
-
         :returns the action: the task, str"""
         pass
 
@@ -171,11 +170,11 @@ class StudentInterface(AgentAbstractBaseClass):
 
 
 class ExaminerInterface(AgentAbstractBaseClass):
-    """Examiner Interface
+    """Examiner Interface： provide feedback based on the [student spelling, correct answer]
         Legal actions: [0，1], where 0 presents wrong, 1 denotes right
         Observation：TimeStep [student_spelling，answer]
         Policy：no policy
-        Output：actions: for example, [0,1,1,0,1,1,1]!!!!!!!!!!!!!!!!
+        Output：actions: for example, ([0,1,1,0,1,1,1], accuracy, completeness)
         State: calculate the accuracy and completeness
     """
 

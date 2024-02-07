@@ -6,7 +6,7 @@ state provide whole necessary information to help env construct the TimeStep
 """
 
 import abc
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 
 class StateInterface(metaclass=abc.ABCMeta):
@@ -46,6 +46,8 @@ class StateInterface(metaclass=abc.ABCMeta):
                                      [i for i in range(26)],
                                      [0, 1]]
 
+        self._current_corpus = tuple()
+
         self._condition: str = ''
         self._answer: str = ''
         self._answer_length: int = 0
@@ -56,7 +58,7 @@ class StateInterface(metaclass=abc.ABCMeta):
         self._stu_spelling: List[str] = []
 
         self._examiner_feedback: Tuple[List[int], float, float] = tuple()
-        self._history = []  # what information does the history have?,搞个准确度和完整度吧
+        self._history = {}  # what information does the history have?,搞个准确度和完整度吧
 
     @property
     def current_player(self) -> int:
@@ -159,8 +161,9 @@ class StateInterface(metaclass=abc.ABCMeta):
         return self._examiner_feedback
 
     @property
-    def history(self) -> List:
+    def history(self) -> Dict:
         """
-        :return: return the history!!!!!!!!!!!!!!!!!!!!!!!!
+        what kinds of observation should be record to help tutor make decision?
+        [condition[phonemes], answer length, examiner feedback[letters], accuracy, completeness]
         """
         return self._history

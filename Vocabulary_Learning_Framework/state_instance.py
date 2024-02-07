@@ -7,6 +7,7 @@ class VocabSpellState(StateInterface):
         super().__init__(vocab_sessions)
 
     def legal_actions(self, player_ID):
+        """get the legal action of one agent"""
         return self._legal_actions[player_ID]
 
     def tutor_legal_actions(self):
@@ -18,6 +19,7 @@ class VocabSpellState(StateInterface):
         """get the 'condition' and word_length for student, and answer for examiner """
         for task in self._vocab_session:
             if task == action:  # 如果两个任务完全相等
+                self._current_corpus = tuple(task)  # the type of corpus is tuple('s ɛ n t ʌ n s', 's e n t e n c e')
                 self._condition = task[0]
                 self._answer = task[1]
                 self._answer_length = len(''.join(task[1].split(' ')))
@@ -31,8 +33,8 @@ class VocabSpellState(StateInterface):
     # 保存历史记录
     def apply_action(self, action):
         if self._current_player == 0:  # 每个session结束以后，才到 player 0
-            self._legal_actions[self._current_player].remove(action)
-            self._vocab_session = self._vocab_sessions[action]
+            self._legal_actions[self._current_player].remove(action)  # 选择了就直接移除
+            self._vocab_session = self._vocab_sessions[action]   #
             self.tutor_legal_actions()  # define the second player legal actions
         elif self._current_player == 1:  # tutor
             self.spilt_task(action)
@@ -42,12 +44,11 @@ class VocabSpellState(StateInterface):
             self.student_spelling(action)
         elif self._current_player == 3:
             self._examiner_feedback = action
-            print(self._examiner_feedback)
-            # 不知道这个的history信息是做什么的
-            # self._history.append(self._accuracy)
-            # self._history.append(self._completeness)
+            # store all information
+            self._history[self._current_corpus] = self._examiner_feedback
             # if session task is empty, then select a new session, else continue to select new word from the session
             if len(self.legal_actions(1)) == 0:
+                """如果当前的session为空则第一个玩家重新选择session"""
                 self._current_player = 0
                 self._current_session_num += 1
             else:
@@ -61,3 +62,4 @@ class VocabSpellState(StateInterface):
         奖励应该和准确度成正比，虽然和单词长度也有一定的关系"""
         scaled_accuracy = np.tanh(information * (np.pi / 2) - (np.pi / 4))
         return np.tan(scaled_accuracy)
+

@@ -13,7 +13,7 @@ import string
 import Levenshtein
 from agents_interface import *
 import pandas as pd
-
+import torch
 
 # TaskCollector Agent
 class SessionCollectorPlayer(SessionCollectorInterface):
@@ -35,14 +35,14 @@ class SessionCollectorPlayer(SessionCollectorInterface):
         legal_actions = time_step.observations["legal_actions"][self.player_id]
         if self._policy == 'random':  # 随机挑选session
             action = random.choice(legal_actions)  # random
-        elif self._policy == 'sequential':  # 按照顺序挑选session，每次都选择首位
+        elif self._policy == 'sequential':  # 按照顺序挑选session，每次都选择首位,因为选过的已经删除
             action = legal_actions[0]  # sequential
         return action
 
 
 # PresentWord Agent
 class PresentWordPlayer(PresentWordInterface):
-    """老师存在一个bug，就是session的内容不变，如果动作一直是那个数字，那么永远会挑第一个满足条件的，从而使得其实不是session的每一个单词都训练了的"""
+    """"""
 
     def __init__(self,
                  player_id,
@@ -94,8 +94,9 @@ class StudentPlayer(StudentInterface):
                          policy)
 
         CURRENT_PATH = os.getcwd()  # get the current path
-        STU_MEMORY_PATH = os.path.join(CURRENT_PATH, 'stu_memory.xlsx')
+        STU_MEMORY_PATH = os.path.join(CURRENT_PATH, 'forgetting_memory.xlsx')
         self.stu_memory_df = pd.read_excel(STU_MEMORY_PATH, index_col=0, header=0)  # excellent students
+        self.stu_memory_tensor = torch.tensor(self.stu_memory_df.values, dtype=torch.float32)  # the shape of distribution
 
     def stu_spell(self, time_step) -> List[int]:
         """  三类学生，随机，优秀，遗忘
@@ -134,8 +135,30 @@ class StudentPlayer(StudentInterface):
                 actions.append(alphabet.index(letter_position.split('_')[0]))
 
         elif self._policy == 'forget':
-            """wait to be achieved """
-            pass
+            """wait to be achieved,把遗忘的算法今天嵌入进去，不难，直接改过来就行 """
+            noise = torch.randn_like(self.stu_memory_tensor)
+            new_memory_tensor = 0.9998 * self.stu_memory_tensor + 0.0218 * noise  # how to forget
+            result_df = pd.DataFrame(new_memory_tensor.numpy(), index=self.stu_memory_df.index,
+                                     columns=self.stu_memory_df.columns)
+            self.stu_memory_df = result_df.mask(result_df <= 0, 0.0001)
+            spelling = []  # store the letter_position
+            self.position_condition = []  # empty is every time
+            for position, phoneme in enumerate(condition):
+                self.position_condition.append(phoneme + '_' + str(position))
+            for i in range(answer_length):
+                if i == 0:
+                    result_columns = [al + '_' + str(i) for al in alphabet]
+                    possible_results = self.stu_memory_df.loc[self.position_condition[0], result_columns]
+                    letter = possible_results.idxmax()
+                else:
+                    result_columns = [al + '_' + str(i) for al in alphabet]
+                    possible_results = self.stu_memory_df.loc[self.position_condition, result_columns]
+                    letters_prob = possible_results.sum(axis=0)  # 每一列相加,取概率最大值
+                    letter = letters_prob.idxmax()
+                spelling.append(letter)
+
+            for letter_position in spelling:
+                actions.append(alphabet.index(letter_position.split('_')[0]))
         return actions
 
     def stu_learn(self, time_step) -> None:
@@ -171,4 +194,4 @@ class ExaminerPlayer(ExaminerInterface):
             else:
                 actions.append(legal_actions[0])
         self.accuracy.append(word_accuracy)
-        return actions, word_accuracy, word_completeness
+        return student_spelling, actions, word_accuracy, word_completeness
