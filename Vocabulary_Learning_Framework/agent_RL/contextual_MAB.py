@@ -3,44 +3,60 @@ define observation space, action space, reward function
 1：如果只考虑音标对应的所有字母的概率分布的KL散度，那么大概率会选择比较长的音标最为最需要联系的单词
 2：接下来要考虑的是正确字母和错误字母如何使用
 """
+import os
+
+import Levenshtein
+import string
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import entropy
 import pandas as pd
+import pickle
+import random
 
-# the testing result of forgetting student
-# what the observation should be?
-# first, select 2 from 15 words
+from Spelling_Framework.utils.choose_vocab_book import ReadVocabBook
 
+with open('agent_RL/history_information.pkl', 'rb') as pkl_file:
+    tasks = pickle.load(pkl_file)
 
-'''
-tasks = {('dʒ æ k ʌ t', 'j a c k e t'): ('jabatd', [1, 1, 0, 0, 0, 0], 0.5, 0.333),
-               ('k ɝ ɪ r', 'c a r e e r'): ('cxrxff', [1, 0, 1, 0, 0, 0], 0.333, 0.333),
-               ('f ɛ r w ɛ l', 'f a r e w e l l'): ('fexynvot', [1, 0, 0, 0, 0, 0, 0, 0], 0.25, 0.125),
-               ('p ɑ l ɪ ʃ', 'p o l i s h'): ('phfopi', [1, 0, 0, 0, 0, 0], 0.5, 0.167),
-               ('h ʌ b ɪ tʃ u ʌ l', 'h a b i t u a l'): ('hhqzktal', [1, 0, 0, 0, 0, 0, 1, 1], 0.5, 0.375),
-               ('b r i ð', 'b r e a t h e'): ('bmejblr', [1, 0, 1, 0, 0, 0, 0], 0.286, 0.286),
-               ('t ɔ l', 't a l l'): ('txor', [1, 0, 0, 0], 0.25, 0.25),
-               ('k ɑ n t r æ s t', 'c o n t r a s t'): ('cvantiyq', [1, 0, 0, 0, 0, 0, 0, 0], 0.375, 0.25),
-               ('k ɔ r d', 'c o r d'): ('copb', [1, 1, 0, 0], 0.5, 0.5),
-               ('h ɔ l', 'h a l l'): ('hhkl', [1, 0, 0, 1], 0.5, 0.5),
-               ('s ʌ b ɝ b', 's u b u r b'): ('saqhkb', [1, 0, 0, 0, 0, 1], 0.333, 0.333),
-               ('f r aɪ d i', 'f r i d a y'): ('flplep', [1, 0, 0, 0, 0, 0], 0.167, 0.167),
-               ('l ɪ k ɝ', 'l i q u o r'): ('lmfsyi', [1, 0, 0, 0, 0, 0], 0.333, 0.167),
-               ('b aʊ', 'b o w'): ('bpu', [1, 0, 0], 0.333, 0.333),
-               ('f i b ʌ l', 'f e e b l e'): ('fendnb', [1, 1, 0, 0, 0, 0], 0.5, 0.333)}
-'''
+selected_items = random.sample(tasks.items(), 20)
 
-tasks = [('dʒ æ k ʌ t', 6, 0.5, 0.333), ('k ɝ ɪ r', 6, 0.333, 0.333), ('f ɛ r w ɛ l', 8, 0.25, 0.125),
-         ('p ɑ l ɪ ʃ', 6, 0.5, 0.167),
-         ('h ʌ b ɪ tʃ u ʌ l', 8, 0.5, 0.375), ('b r i ð', 7, 0.286, 0.286), ('t ɔ l', 4, 0.25, 0.25),
-         ('k ɑ n t r æ s t', 8, 0.375, 0.25), ('k ɔ r d', 4, 0.5, 0.5), ('h ɔ l', 4, 0.5, 0.5),
-         ('s ʌ b ɝ b', 6, 0.333, 0.333),
-         ('f r aɪ d i', 6, 0.167, 0.167), ('l ɪ k ɝ', 6, 0.333, 0.167), ('b aʊ', 3, 0.333, 0.333),
-         ('f i b ʌ l', 6, 0.5, 0.333)]
+CURRENT_PATH = os.getcwd()  # get the current path
+VOCAB_PATH: str = os.path.join(CURRENT_PATH, 'vocabulary_books', 'CET4', 'newVocab.json')  # get the vocab data path
+
+corpus_instance = ReadVocabBook(vocab_book_path=VOCAB_PATH,
+                                vocab_book_name='CET4',
+                                chinese_setting=False,
+                                phonetic_setting=True,
+                                POS_setting=False,
+                                english_setting=True)
+original_corpus = corpus_instance.read_vocab_book()
+random.shuffle(original_corpus)  # [['p ɑ p j ʌ l eɪ ʃ ʌ n', 'p o p u l a t i o n'], ['n aɪ n t i n', 'n i n e t e e n']
 
 
-# definition: the maximum improvement of memory, the maximum entropy between two memory.
-# 使用word embedding技术，将音标和字母向量化，再加入其他所有的信息
+def add_position(corpus):
+    """add position for each corpus"""
+    corpus_with_position = []
+    for pair in corpus:
+        phonemes_position = ''
+        letters_position = ''
+        pair_position = []
+        phonemes_list = pair[0].split(' ')
+        for index, phoneme in enumerate(phonemes_list):
+            phoneme_index = phoneme + '_' + str(index)
+            phonemes_position = phonemes_position + phoneme_index + ' '
+        letters_list = pair[1].split(' ')
+
+        for index, letter in enumerate(letters_list):
+            letter_index = letter + '_' + str(index)
+            letters_position = letters_position + letter_index + ' '
+        pair_position.append(phonemes_position.strip())
+        pair_position.append(letters_position.strip())
+        corpus_with_position.append(pair_position)
+    return corpus_with_position
+
+
+t = add_position(original_corpus)
 
 
 class MultiArmBandit:
@@ -71,7 +87,7 @@ class MultiArmBandit:
         completeness = []
         position_phoneme = []
         total_entropy = 0
-        current_observation = self.observation[arm][0].split(' ')
+        current_observation = self.observation[arm][0][0].split(' ')
         for position, phoneme in enumerate(current_observation):
             position_phoneme.append(phoneme + '_' + str(position))
         # find the prob distribution of two memory table
@@ -82,16 +98,15 @@ class MultiArmBandit:
 
         # 计算一个相对准确度差，然后直接加起来
         for ob in self.observation:
-            accuracy.append(ob[2])
+            accuracy.append(ob[1][0][1])
         relative_accuracy = [max(accuracy) - x for x in accuracy]
-        avg_accuracy = relative_accuracy[arm]/self.observation[arm][1]
+        avg_accuracy = relative_accuracy[arm] / len(self.observation[arm][1][0][0])
 
         # 计算一个相对完整度差，然后直接加起来
         for ob in self.observation:
-            completeness.append(ob[3])
+            completeness.append(ob[1][0][2])
         relative_completeness = [max(completeness) - x for x in completeness]
-        avg_completeness = relative_completeness[arm] / self.observation[arm][1]
-
+        avg_completeness = relative_completeness[arm] / len(self.observation[arm][1][0][0])
         reward = total_entropy / len(position_phoneme) + avg_accuracy + avg_completeness
         return reward
 
@@ -110,25 +125,77 @@ class MultiArmBandit:
         self.arm_values[chosen_arm] = new_value
 
 
+class evaluate_improvement:
+    def __init__(self, memory, corpus):
+        self.memory = memory
+        self.corpus = corpus
+        self.student_answer_pair = []
+        self.accuracy = []
+        self.completeness = []
+        self.perfect = []
+        self.avg_accuracy = []
+        self.avg_completeness = []
+        self.avg_perfect = []
+
+    def generate_answer(self):
+        """ generate answer based on the given phonemes,而且我要知道答案的长度，然后根据所有的音标对每一个位置选择最大值"""
+        for phonemes, answer in self.corpus:
+            phonemes = phonemes.split(' ')
+            answer = answer.split(' ')
+            spelling = []
+            answer_length = len(answer)
+            alphabet = string.ascii_lowercase
+            for i in range(answer_length):
+                # 将26个字母和位置结合起来，组成列索引
+                if i == 0:
+                    result_columns = [al + '_' + str(i) for al in alphabet]
+                    possible_results = self.memory.loc[phonemes[0], result_columns]
+                    letter = possible_results.idxmax()
+                else:
+                    result_columns = [al + '_' + str(i) for al in alphabet]
+                    possible_results = self.memory.loc[phonemes, result_columns]
+                    letters_prob = possible_results.sum(axis=0)  # 每一列相加,取概率最大值
+                    letter = letters_prob.idxmax()
+                spelling.append(letter)
+            self.student_answer_pair.append([spelling, answer])
+
+    def evaluation(self):
+        for stu_answer, correct_answer in self.student_answer_pair:
+            stu_answer = ''.join([i.split('_')[0] for i in stu_answer])
+            correct_answer = ''.join([i.split('_')[0] for i in correct_answer])
+            word_accuracy = round(Levenshtein.ratio(correct_answer, stu_answer), 2)
+            word_completeness = round(1 - Levenshtein.distance(correct_answer, stu_answer) / len(correct_answer), 2)
+            word_perfect = 0.0
+            if stu_answer == correct_answer:
+                word_perfect = 1.0
+            self.accuracy.append(word_accuracy)
+            self.completeness.append(word_completeness)
+            self.perfect.append(word_perfect)
+        self.avg_accuracy = sum(self.accuracy) / len(self.accuracy)
+        self.avg_completeness = sum(self.completeness) / len(self.completeness)
+        self.avg_perfect = sum(self.perfect) / len(self.perfect)
+        return self.avg_accuracy, self.avg_completeness, self.avg_perfect
+
+
 if __name__ == '__main__':
     # the number of arms is equal to the number of tasks
-    n_tasks = len(tasks)
-    bandit = MultiArmBandit(n_tasks, tasks)
-    training = 500  # the training number
+    n_tasks = len(selected_items)
+    bandit = MultiArmBandit(n_tasks, selected_items)
+    epoch = 100  # the training number
     task_value = {}
     # train 1000 times
-    excellent_memory_df = pd.read_excel('excellent_memory.xlsx', index_col=0, header=0)  # excellent students
-    forget_memory_df = pd.read_excel('forgetting_memory.xlsx', index_col=0, header=0)  # excellent students
-    # 分别对音标和letter进行独热编码
-    # 获取行索引，并转换为列表
-    phonemes = excellent_memory_df.index.tolist()
-    # 获取列名，并转换为列表
-    letters = excellent_memory_df.columns.tolist()
-    # one hot encoding
-    one_hot_phonetics = {phonetic: [int(i == phonetic) for i in phonemes] for phonetic in phonemes}
-    one_hot_letters = {letter: [int(i == letter) for i in letters] for letter in letters}
+    excellent_memory_df = pd.read_excel('agent_RL/excellent_memory.xlsx', index_col=0, header=0)  # excellent students
+    forget_memory_df = pd.read_excel('agent_RL/forgetting_memory.xlsx', index_col=0, header=0)  # forget students
+    # # 分别对音标和letter进行独热编码
+    # # 获取行索引，并转换为列表
+    # phonemes = excellent_memory_df.index.tolist()
+    # # 获取列名，并转换为列表
+    # letters = excellent_memory_df.columns.tolist()
+    # # one hot encoding
+    # one_hot_phonetics = {phonetic: [int(i == phonetic) for i in phonemes] for phonetic in phonemes}
+    # one_hot_letters = {letter: [int(i == letter) for i in letters] for letter in letters}
 
-    for _ in range(training):
+    for _ in range(epoch):
         exploration_rate = 0.5  # set the prob of exploration
         selected_arm = bandit.select_arm(exploration_rate)  # select arm
         selected_arm_reward = bandit.reward_function(selected_arm, excellent_memory_df,
@@ -136,9 +203,66 @@ if __name__ == '__main__':
         bandit.update(selected_arm, selected_arm_reward)  # 更新所选臂的估计值
 
     # 输出每个臂被选择的次数和估计值
-    for i in range(len(tasks)):
-        print(f"{tasks[i]} 被选择了 {bandit.arm_counts[i]}次，价值为{bandit.arm_values[i]}")
-        task_value[tasks[i]] = bandit.arm_values[i]
+    for i in range(len(selected_items)):
+        task_value[selected_items[i][0]] = bandit.arm_values[i]
     # 按照价值大小排序，则排好的顺序就是应该记忆的顺序,这种判定方式容易选择长的词
     sorted_dict = dict(sorted(task_value.items(), key=lambda item: item[1], reverse=True))
     print(sorted_dict)
+
+    # 评估选择的单词好不好的方式是，选择的单词是不是对整体记忆影响最大的
+    # 要做一个拼接，将好的库里面对应的行，替换掉坏的里面对应的行，行成一个新的表格然后评估
+    excellent_acc_list = []
+    excellent_com_list = []
+    excellent_per_list = []
+    forget_acc_list = []
+    forget_com_list = []
+    forget_per_list = []
+    excellent = evaluate_improvement(excellent_memory_df, t)
+    excellent.generate_answer()
+    excellent_acc, excellent_com, excellent_per = excellent.evaluation()
+    excellent_acc_list.append(excellent_acc)
+    excellent_com_list.append(excellent_com)
+    excellent_per_list.append(excellent_com)
+
+    forget = evaluate_improvement(forget_memory_df, t)
+    forget.generate_answer()
+    forget_acc, forget_com, forget_per = forget.evaluation()
+    forget_acc_list.append(forget_acc)
+    forget_com_list.append(forget_com)
+    forget_per_list.append(forget_com)
+
+    n = len(sorted_dict)
+    position_phoneme = []
+    improvement_acc_list = []
+    improvement_com_list = []
+    improvement_per_list = []
+
+    for key, values in sorted_dict.items():
+        for position, phoneme in enumerate(key[0][0].split(' ')):
+            position_phoneme.append(phoneme + '_' + str(position))
+        forget_memory_copy = forget_memory_df.copy()
+        # 将 df2 中指定行的值赋值给 df1 的副本中相应的行
+        forget_memory_copy.loc[position_phoneme] = excellent_memory_df.loc[position_phoneme].values
+        # 用这个新的记忆，把所有的单词拼写一遍
+        improvement = evaluate_improvement(forget_memory_copy, t)
+        improvement.generate_answer()
+        improvement_acc, improvement_com, improvement_per = improvement.evaluation()
+        print(f'结果是{improvement_acc},{improvement_com},{improvement_per}')
+        improvement_acc_list.append(improvement_acc)
+        improvement_com_list.append(improvement_com)
+        improvement_per_list.append(improvement_per)
+
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+    axs[0].plot(improvement_acc_list)
+    axs[0].plot(excellent_acc_list * n)
+    axs[0].plot(forget_acc_list * n)
+
+    axs[1].plot(improvement_com_list)
+    axs[1].plot(excellent_com_list * n)
+    axs[1].plot(forget_com_list * n)
+
+    axs[2].plot(improvement_per_list)
+    axs[2].plot(excellent_per_list * n)
+    axs[2].plot(forget_per_list * n)
+
+    plt.show()
