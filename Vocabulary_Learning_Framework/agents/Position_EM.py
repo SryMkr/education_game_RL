@@ -6,7 +6,6 @@ This model is used to simulate excellent student agent
 import random
 import Levenshtein
 import os
-
 from Spelling_Framework.agents.Dictionary_Student import PhoLetStudent
 from Spelling_Framework.utils.choose_vocab_book import ReadVocabBook
 from typing import List, Tuple
@@ -85,16 +84,9 @@ def add_position(corpus):
     return corpus_with_position
 
 
-
 t = add_position(original_corpus)
-
-
-
 pos_training_corpus = add_position(training_corpus)  # get the training data [phonemes, word]
 pos_testing_corpus = add_position(testing_corpus)  # get the testing data
-
-
-
 
 
 class PositionPhoLetStudent:
@@ -113,7 +105,7 @@ class PositionPhoLetStudent:
         self.avg_completeness = 0.0
         self.avg_perfect = 0.0
 
-    def train_model(self, num_epochs=10):
+    def train_model(self, num_epochs=1):
         """ train the model"""
         s_total = {}
         for epoch in range(num_epochs):
@@ -188,7 +180,7 @@ class PositionPhoLetStudent:
 
 if __name__ == "__main__":
     # phoneme letter pair student
-    phoLet_student = PhoLetStudent(training_corpus, original_corpus)
+    phoLet_student = PhoLetStudent(training_corpus, training_corpus)
     phoLet_student.construct_vocab()
     phoLet_student.initial_prob()
     phoLet_student.train_model()
@@ -199,7 +191,7 @@ if __name__ == "__main__":
 
     # 训练音标和字母之间的关系
     # phoneme letter pair student
-    position_phoLet_student = PositionPhoLetStudent(pos_training_corpus, t, phoneme_letter_prob, df_index, df_column)
+    position_phoLet_student = PositionPhoLetStudent(pos_training_corpus, pos_training_corpus, phoneme_letter_prob, df_index, df_column)
     position_phoLet_student.train_model()
     # position_phoLet_student.phoneme_letter_df.to_excel(STU_MEMORY_PATH, engine='openpyxl')
     position_phoLet_student.generate_answer()

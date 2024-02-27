@@ -26,7 +26,7 @@ _VOCAB_DATA = _vocab_instance.read_vocab_book()
 # print(_VOCAB_DATA)
 
 corpus = [[item.split() for item in sublist] for sublist in _VOCAB_DATA]
-# print(corpus)
+
 # corpus = [[['一本', '书'], ['a', 'book']], [['一本', '杂志'], ['a', 'magazine']]]
 # corpus = [[['w', 'i', 'k'], ['w', 'e', 'a', 'k']], [['w', 'i', 'k', 'ʌ', 'n'], ['w', 'e', 'a', 'k', 'e', 'n']]]
 
@@ -45,8 +45,8 @@ english_words = sorted(list(set(english_vocab)), key=lambda s: s.lower())
 foreign_words = sorted(list(set(foreign_vocab)), key=lambda s: s.lower())
 
 
-# print('English words:\n', len(english_words))
-# print('Foreign words:\n', len(foreign_words))
+print('English words:\n', len(english_words))
+print('Foreign words:\n', len(foreign_words))
 
 '''
 # 给定e,f句子和t,计算p(e|f)
@@ -89,7 +89,7 @@ for fw in foreign_words:
             t[fw] = {}
         t[fw][ew] = init_val
 
-# print('\nInit t', t)
+print('\nInit t', t)
 
 
 num_epochs = 20
@@ -136,7 +136,7 @@ for epoch in range(num_epochs):
             # print('prob to %s \tis %f' % (ew, p))
             phoneme_letter_df.loc[fw, ew] = round(p, 5)
             phoneme_letter_df = phoneme_letter_df.fillna(0)
-    phoneme_letter_df.to_excel('test_data/phoneme_letter_pair/IBM_phoneme_letter_pair.xls')
+    # phoneme_letter_df.to_excel('test_data/phoneme_letter_pair/IBM_phoneme_letter_pair.xls')
 
 
 

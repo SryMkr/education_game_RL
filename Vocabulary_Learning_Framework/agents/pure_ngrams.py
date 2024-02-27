@@ -4,205 +4,193 @@
 3： 训练数据取多少？n设置为多少？
 4：如何利用信息？ （中文，） 贝叶斯网络
 5：如果条件是独一无二的，那么答案一定是正确的， 但是完全没有泛化能力，因为后面的条件一顶不同
-6：完全拼写正确的准确度是多少？ 不是距离，而是完全拼写正确的比例
 7：音标如何辅助预测？
-"""
 
+任务
+# 2023年11月23日，自己实现n gram的计算，并且可以实现基本的拼写功能, 保证代码完全正确
+1: 如果概率一样，没有全部考虑
+2：测试数据依旧会出现没有样本的情况，所以需要平滑
+3：如何考虑音标的情况
+4：如何平滑频率表和概率表格
+5: 发现的问题是概率改变导致condition改变，从而无法找到样本数据
+6：没有出现的条件怎么处理？直接加有点太鲁莽，明天考虑吧
+7：probs of spelling given the phonemes
+# 如何将音标和ngrams结合做预测
+纯粹的n-grams最终的效果非常差，根本无法模拟完美学生
+"""
 
 import os
 import random
-from typing import List
+from itertools import chain
+from typing import List, Dict, Tuple
 from Spelling_Framework.utils.choose_vocab_book import ReadVocabBook
-import nltk
-from nltk.util import ngrams
+from collections import Counter
 from nltk.tokenize import word_tokenize
-from nltk.probability import ConditionalFreqDist, MLEProbDist
 import Levenshtein
-import matplotlib.pyplot as plt
 import pandas as pd
 
-# ----------------------------------------------read vocabulary data---------------------------------------------------------------
-CURRENT_PATH = os.getcwd()  # get the current path
-# get the vocab data path
-_vocabulary_absolute_path = os.path.join(CURRENT_PATH, 'vocabulary_books', 'CET4', 'Vocab.json')
+# ----------------------------------------------read vocabulary book---------------------------------------------------------------
+_CURRENT_PATH: str = os.getcwd()  # get the current path
+
+_vocab_book_abs_path: str = os.path.join(_CURRENT_PATH, 'vocabulary_books', 'CET4', 'Vocab.json')  # get the vocab data path
+
 # initialize vocabulary instance
-_vocab_instance = ReadVocabBook(vocab_book_path=_vocabulary_absolute_path,
+_vocab_instance = ReadVocabBook(vocab_book_path=_vocab_book_abs_path,
                                 vocab_book_name='CET4',
-                                chinese_setting=True,
+                                chinese_setting=False,
                                 phonetic_setting=True,
-                                POS_setting=True,
+                                POS_setting=False,
                                 english_setting=True)
 
-# read vocab data [[condition, english]......] [['j ɔ r', 'y o u r'], ['j ɝ s ɛ l f', 'y o u r s e l f']]
-_vocab_data: List[List[str]] = _vocab_instance.read_vocab_book()
-print(_vocab_data)
-# get the longest length and shortest length
-word_length_list = []
-for task in _vocab_data:
-    word_length_list.append(len(''.join(task[1].split())))
-# print(f' the maximum word length is: {max(word_length_list)}, and the shortest word length is: {min(word_length_list)}',)
-LONGEST_WORD_LENGTH = max(word_length_list)  # 14
-
-random.shuffle(_vocab_data)  # shuffle the vocabulary book
+# read vocab data [[phoneme, english]......] [['j ɔ r', 'y o u r'], ['j ɝ s ɛ l f', 'y o u r s e l f']......]
+_VOCAB_DATA: List[List[str]] = _vocab_instance.read_vocab_book()
+print(_VOCAB_DATA)
+random.shuffle(_VOCAB_DATA)  # shuffle the vocabulary book
 
 
 # ----------------------------------------------train model-------------------------------------------------------------
 
 # nltk.download('punkt') # down the necessary file for tokenize
 
-
-def generate_ngrams(tokens, n):
+def generate_ngrams(tokens, n: int):
     """ generate n-grams with start, end and pad symbol"""
-    start = ['<bos>']  # start can be information
-    end = ['<eos>']
-    pad = ['<pad>']
-    tokens = start + tokens + end
-    padding_part = pad * (LONGEST_WORD_LENGTH + 2 - len(tokens))  # padding based on the longest word length
-    padding_token = tokens + padding_part
-    # print(f' the token list after padding: {padding_token}')
-    return list(ngrams(padding_token, n))
+    BOS = ['<bos>']  # begin of sentence
+    EOS = ['<eos>']  # end of sentence
+    tokens = BOS + tokens + EOS  # concatenate the start symbol, token, end symbol -> new tokens
+    n_grams = [tuple(tokens[i:i + n]) for i in range(len(tokens) - n + 1)]  # generate grams
+    conditions = [tuple(tokens[i:i + n - 1]) for i in range(len(tokens) - n + 1)]  # generate conditions
+    return tokens, n_grams, conditions
 
 
-def construct_dataset(vocab_data, split_ratio, n_length, condition_length):
-    """ generate n_grams and conditions """
+def construct_dataset(vocab_data, split_ratio, n_length):
+    """ construct freq and prob matrix """
+    n_grams_tokens_list = []  # store all grams
+    conditions_tokens_list = []  # store all conditions
+    task_tokens_list = []  # store correct answer
+    test_task_tokens_list = []  # store testing data
 
-    training_data = vocab_data[: int(len(vocab_data) * split_ratio)]
-    testing_data = vocab_data[int(len(vocab_data) * split_ratio):]
+    training_data = vocab_data[: int(len(vocab_data) * split_ratio)]  # get the training data [phonemes, word]
+    testing_data = vocab_data[int(len(vocab_data) * split_ratio):]  # get the testing data
 
-    training_tokens = [word_tokenize(data[1]) for data in training_data]
-    testing_tokens = [word_tokenize(data[1]) for data in testing_data]
+    training_tokens = [[word_tokenize(data[1]), word_tokenize(data[0])] for data in training_data]
+    testing_tokens: List[str] = [word_tokenize(data[1]) for data in testing_data]  # get the testing tokens
 
-    training_seq_ngrams = [generate_ngrams(seq_token, n_length) for seq_token in training_tokens]
-    training_n_grams = [ngram for seq_ngrams in training_seq_ngrams for ngram in seq_ngrams]
+    for seq_token in testing_tokens:
+        test_task_tokens, test_n_grams_tokens, test_conditions_tokens = generate_ngrams(seq_token, n_length)
+        test_task_tokens_list.append(test_task_tokens)
 
-    testing_seq_ngrams = [generate_ngrams(seq_token, n_length) for seq_token in testing_tokens]
-    testing_n_grams = [ngram for seq_ngrams in testing_seq_ngrams for ngram in seq_ngrams]
+    task_phoneme_tokens_list = []
+    # separate the phonemes, word
+    for seq_token, phoneme_tokens in training_tokens:
+        task_tokens, n_grams_tokens, conditions_tokens = generate_ngrams(seq_token, n_length)
 
-    training_condition_grams_with_bos = []
-    testing_condition_grams_with_bos = []
+        task_phoneme_tokens_list.append([task_tokens, phoneme_tokens])
 
-    # read the condition with '<bos>'
-    for grams in training_n_grams:
-        if list(grams)[0] == '<bos>':
-            training_condition_grams_with_bos.append(list(grams)[:condition_length])
+        task_tokens_list.append(task_tokens)
+        n_grams_tokens_list.append(n_grams_tokens)
+        conditions_tokens_list.append(conditions_tokens)
 
-    for grams in testing_n_grams:
-        if list(grams)[0] == '<bos>':
-            testing_condition_grams_with_bos.append(list(grams)[:condition_length])
-    # print("condition grams from '<bos>':", condition_grams)
-    # print(f' the length of conditional grams with <bos>: {len(condition_grams_with_bos)}')
+    n_grams_list = list(chain(*n_grams_tokens_list))
+    conditions_list = list(chain(*conditions_tokens_list))
 
-    return training_data, testing_data, training_n_grams, training_condition_grams_with_bos, testing_n_grams, testing_condition_grams_with_bos
+    conditions_counts = dict(Counter(conditions_list))  # convert tuple into dictionary
+    conditions_counts: Dict[Tuple[str], int] = {"_".join(map(str, key)): value for key, value in
+                                                conditions_counts.items()}
+
+    # count the n_grams, and conditions
+    ngrams_counts = list(Counter(n_grams_list).items())
+
+    # print(phoneme_letter_matrix)
+    # create frequency matrix
+    condition_letter_freq_df = pd.DataFrame()
+    for ngrams_count in ngrams_counts:
+        condition_letter_freq_df.loc['_'.join(ngrams_count[0][:-1]), ngrams_count[0][-1]] = ngrams_count[1]
+    condition_letter_freq_df = condition_letter_freq_df.fillna(0)  # frequency table
+
+    # create probability table
+    condition_letter_prob_df = condition_letter_freq_df.div(conditions_counts, axis=0)
+    return task_tokens_list, test_task_tokens_list, task_phoneme_tokens_list, condition_letter_freq_df, condition_letter_prob_df
 
 
-def calculate_condition_feq(n_grams, condition_length):
-    """ train model: calculate frequency matrix """
-    # calculate frequency distribution, (condition, event)
-    cond_freq_dist = ConditionalFreqDist(
-        (tuple(ngram[:condition_length]), ngram[condition_length]) for ngram in n_grams)
-
-    prob_dist = MLEProbDist(cond_freq_dist)
-    # print(prob_dist)
-    return cond_freq_dist
-
-
-def generate_spelling(model, condition_grams_with_bos, condition_length):
+# generate spelling  给定一个条件，要得到所有可能的拼写及其概率, 找到对应的单词，打印所有的概率
+def generate_spelling(model, task_token, condition_length):
     """ generate spelling based on trained model"""
     generated_answer = []  # the generated content via probability matrix
+    # 别的不说，肯定是要先拿到音标，任何一个音标都对应了所有字母的可能性的概率，先打印出来
     word_index = 0
-    for con_grams in condition_grams_with_bos:
-        for _ in range(LONGEST_WORD_LENGTH + 1 - condition_length):
+    for task in task_token:
+        condition = task[:condition_length]  # get the task condition
+        # print(phoneme_letter_matrix.iloc[condition])
+        # print(condition)
+        # bos_token = condition.copy()
+        task_length = len(task)
+        # control the length of prediction
+        for _ in range(task_length - condition_length):
             try:
-                condition = tuple(con_grams[-condition_length:])
-                next_word = model[condition].max()  # select the maximum probability
-                con_grams.append(next_word)
-            except ValueError as e:
+                condition_window = '_'.join(condition[-condition_length:])
+                # 如何给出所有可能的答案？以及如何将音标加进去辅助拼写
+                next_letter = model.loc[condition_window].idxmax()  # select the maximum probability
+                # print(next_word)
+                condition.append(next_letter)
+                if next_letter == '<eos>':
+                    break
+            except KeyError as e:
                 print(f"Error: {e}")
-                print(f"No samples for '{condition}'. Add some samples first.")
-
-        # only read the legal letters
-        pure_con_grams = [letter for letter in con_grams if letter not in ['<bos>', '<eos>', '<pad>']]
-        generated_answer.append(" ".join(pure_con_grams))
+                print(f"No samples for '{condition_window}'. Add some samples first.")
+        # print(f'{bos_token} Generated Answer Is {" ".join(condition)}, Correct Answer Is {" ".join(task)}')
+        generated_answer.append(" ".join(condition))
         word_index += 1
-        # print("Generated Text:", generated_answer)
-    return generated_answer
+
+    return generated_answer, task_token
 
 
-def evaluation_model(data, generated_answer):
+def evaluation_model(student_answer, task_answer):
     """ evaluation according to accuracy and completeness"""
     accuracy_list = []
     completeness_list = []
     perfect_spelling_counts = 0
-    for index in range(len(data)):
-
-        stu_spelling = ''.join(generated_answer[index].split(' '))
-        correct_answer = ''.join(data[index][1].split(' '))
+    for index in range(len(task_answer)):
+        stu_spelling = student_answer[index]
+        tutor_answer = ' '.join(task_answer[index])
         # calculate Levenshtein accuracy and completeness
-        word_accuracy = round(Levenshtein.ratio(stu_spelling, correct_answer), 2)
-        word_completeness = round(1 - Levenshtein.distance(stu_spelling, correct_answer) / word_length_list[index], 2)
+        word_accuracy = round(Levenshtein.ratio(tutor_answer, stu_spelling), 2)
+        word_completeness = round(1 - Levenshtein.distance(tutor_answer, stu_spelling) / len(tutor_answer), 2)
         accuracy_list.append(word_accuracy)
         completeness_list.append(word_completeness)
         # calculate perfect spelling accuracy
-        if stu_spelling == correct_answer:
+        if stu_spelling == tutor_answer:
             perfect_spelling_counts += 1
 
-    # 在这判断perfect spelling 的比例
     n_avg_accuracy = sum(accuracy_list) / len(accuracy_list)
     n_avg_completeness = sum(completeness_list) / len(completeness_list)
     perfect_spelling_ratio = perfect_spelling_counts / len(accuracy_list)
     return n_avg_accuracy, n_avg_completeness, perfect_spelling_ratio
 
 
-def draw_n_plots(vocab_data, split_ratio):
-    """explore the relationship between n and vocabulary size"""
-    N_LENGTH = [n_length for n_length in range(2, LONGEST_WORD_LENGTH + 2, 1)]  # test from 2 to 15 [2-15]
-    # print(_n_length)
-    CONDITION_LENGTH = [con_length - 1 for con_length in N_LENGTH]
-    # print(_condition_length)
+def draw_n_plots(split_ratio):
+    """explore the relationship between n and whole corpus"""
+    N_LENGTH = [2, 3]  # the length of 'n', only use 2,3
     n_accuracy = []
     n_completeness = []
     n_perfect_ratio = []
-    for n_index in range(len(N_LENGTH)):
-        train_data, test_data, train_grams, train_condition, \
-            test_grams, test_condition = construct_dataset(vocab_data,
-                                                           split_ratio,
-                                                           N_LENGTH[n_index],
-                                                           CONDITION_LENGTH[n_index])
-
-        freq_model = calculate_condition_feq(train_grams, CONDITION_LENGTH[n_index])
-        # generated_answer = generate_spelling(freq_model, test_condition, CONDITION_LENGTH[n_index])  # change condition
-        generated_answer = generate_spelling(freq_model, test_condition, CONDITION_LENGTH[n_index])  # change condition
-        n_avg_accuracy, n_avg_completeness, perfect_spelling_ratio = evaluation_model(train_data, generated_answer)
+    for n_index in N_LENGTH:
+        task_tokens, test_tokens, task_phoneme_list, freq_matrix, prob_matrix = construct_dataset(_VOCAB_DATA, split_ratio, n_index)
+        generated_answer, correct_answer = generate_spelling(prob_matrix, task_tokens, n_index - 1)
+        n_avg_accuracy, n_avg_completeness, perfect_spelling_ratio = evaluation_model(generated_answer, correct_answer)
         n_accuracy.append(n_avg_accuracy)
         n_completeness.append(n_avg_completeness)
         n_perfect_ratio.append(perfect_spelling_ratio)
-    # plt.plot(_n_length, n_accuracy, label='n_accuracy', color='blue')
-    # plt.plot(_n_length, n_completeness, label='n_completeness', color='red')
-    # plt.xlabel(f'data size {len(generated_answer)} in different n')
-    # plt.ylabel('evaluation metrics')
-    # plt.xticks(_n_length)  # 设置为你的 x 数据
-    # plt.legend()
-    # plt.show()
     return n_accuracy, n_completeness, n_perfect_ratio
 
 
 if __name__ == '__main__':
-    _split_ratio = [size / len(_vocab_data) for size in range(50, 1050, 100)]
-    _n_length = [n_length for n_length in range(2, LONGEST_WORD_LENGTH + 2, 1)]  # test from 2 to 14 [2-14]
-    _condition_length = [con_length - 1 for con_length in _n_length]
-    accuracy = []
-    completeness = []
-    perfect_ratio = []
-    for ratio in _split_ratio:
-        avg_accuracy, avg_completeness, n_perfect_ratio = draw_n_plots(_vocab_data, ratio)
+    _split_ratio = [1]  # use the whole corpus
+    accuracy_list = []  # store different n accuracy in a specific data size
+    completeness_list = []  # store different n completeness in a specific data size
+    perfect_ratio_list = []  # store different n perfect in a specific data size
+    for ratio in _split_ratio:  # the whole corpus
+        avg_accuracy, avg_completeness, n_perfect_ratio = draw_n_plots(ratio)
         print(f'data size:{ratio}, avg_accuracy:{avg_accuracy}, avg_completeness:{avg_completeness}, perfect_ratio:{n_perfect_ratio}')
-        accuracy.append(avg_accuracy)
-        completeness.append(avg_completeness)
-        perfect_ratio.append(n_perfect_ratio)
-    acc_df = pd.DataFrame(accuracy, columns=_n_length, index=_split_ratio)
-    com_df = pd.DataFrame(completeness, columns=_n_length, index=_split_ratio)
-    per_df = pd.DataFrame(perfect_ratio, columns=_n_length, index=_split_ratio)
-    # 将 DataFrame 保存为 CSV 文件
-    acc_df.to_excel('test_data/pure_ngrams/acc_data.xls')
-    com_df.to_excel('test_data/pure_ngrams/com_data.xls')
-    per_df.to_excel('test_data/pure_ngrams/perfect_spelling.xls')
+        accuracy_list.append(avg_accuracy)
+        completeness_list.append(avg_completeness)
+        perfect_ratio_list.append(n_perfect_ratio)
