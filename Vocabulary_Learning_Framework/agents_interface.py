@@ -22,12 +22,10 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
                  player_id: int,
                  player_name: str,
                  **agent_specific_kwargs):
-        """Initializes agent.
-
+        """Initializes agent
                 Args:
                     player_id: zero-based integer，for index agent
                     player_name: string.
-                    policy: optional, some agent probably doest have policy function
                     **agent_specific_kwargs: optional extra args.
                 """
         self._player_id: int = player_id
@@ -37,7 +35,7 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
     def step(self, time_step):
         """
            Agents should observe the `time_step` from env and extract the required part of the
-           `time_step.observations` field and reward field.
+           `time_step.observations` field and 'reward' field.
 
            Arguments:
              time_step: an instance of rl_environment.TimeStep.
@@ -62,11 +60,12 @@ class AgentAbstractBaseClass(metaclass=abc.ABCMeta):
 
 class SessionCollectorInterface(AgentAbstractBaseClass):
     """session player
-    legal actions: List[int]: the index of sessions,
-    Observation：legal actions： List[int]
-    Policy：random, sequential
-    Output：action: the chosen session index
-    State: read the session data based on the session index
+    legal actions: the history words
+    Observation：the history words and history information
+    Policy：random, multi-arm bandits
+    随机选择的话，自己移除已经选择的单词，      这两种方法选择同样的记忆概率，哪种方法的留存比较高？
+    MAB选择的话，整体考虑，选择过的还可以选择。
+    Output：the selected words
     """
 
     @abc.abstractmethod
@@ -80,9 +79,9 @@ class SessionCollectorInterface(AgentAbstractBaseClass):
         self._policy = policy
 
     @abc.abstractmethod
-    def step(self, time_step) -> int:
+    def step(self, time_step) -> List:
         """
-                    :return: the session index
+                    :return: the words need to be reviewed
                     """
         pass
 
@@ -174,8 +173,8 @@ class ExaminerInterface(AgentAbstractBaseClass):
         Legal actions: [0，1], where 0 presents wrong, 1 denotes right
         Observation：TimeStep [student_spelling，answer]
         Policy：no policy
-        Output：actions: for example, ([0,1,1,0,1,1,1], accuracy, completeness)
-        State: calculate the accuracy and completeness
+        Output：actions: for example, ([0,1,1,0,1,1,1], similarity)
+        State: calculate the similarity
     """
 
     def __init__(self,
@@ -186,8 +185,8 @@ class ExaminerInterface(AgentAbstractBaseClass):
         """Initializes examiner agent"""
 
     @abc.abstractmethod
-    def step(self, time_step) -> Tuple[List[int], float, float]:
+    def step(self, time_step) -> Tuple[Dict[str, int], float]:
         """
-        :returns the actions list, consisting of 0 and 1
+        :returns the ({letter_position: mark}, accuracy, completeness)
         """
         pass

@@ -1,9 +1,9 @@
 """
-environment instance
-基本上就是有两个方法： step，reset
-上述每一种方法分为两步：（1） 将action应用到state中使得state发生变化，
-                    （2）需要使用从新的state中构造新的TimeStep， step使用get_time_step, reset使用new_initial_state
-目的都是为了构造一个TimeStep,里面包含环境中的所有信息，然后让相应的agent做选择
+environment instance consists of two fundamental functions: step，get_time_step.
+
+step：（1） apply the action receiving from agent to change the current state of environment
+get_time_step:（2）read information from the new state as the agents information
+
 """
 from environment_interface import EnvironmentInterface
 from state_instance import VocabSpellState
@@ -45,7 +45,8 @@ class TimeStep(collections.namedtuple("TimeStep", ["observations", "rewards", "d
 
 
 class VocabSpellGame(EnvironmentInterface):
-    """ create the interactive env"""
+    """ create the interactive environment"""
+
     def __init__(self,
                  vocabulary_book_path,
                  vocabulary_book_name,
@@ -53,7 +54,9 @@ class VocabSpellGame(EnvironmentInterface):
                  phonetic_setting,
                  POS_setting,
                  english_setting,
-                 new_words_number,
+                 history_words_number,
+                 review_words_number,
+                 sessions_number,
                  ):
         super().__init__(vocabulary_book_path,
                          vocabulary_book_name,
@@ -61,27 +64,31 @@ class VocabSpellGame(EnvironmentInterface):
                          phonetic_setting,
                          POS_setting,
                          english_setting,
-                         new_words_number)
+                         history_words_number,
+                         review_words_number,
+                         sessions_number,
+                         )
 
-    # initialize the state of game, to read the state attributes
     def new_initial_state(self):
-        """ calling the state, and pass the vocabulary sessions"""
-        return VocabSpellState(self._vocabulary_sessions)
+        """ calling the state, and pass the history words"""
+        return VocabSpellState(self.history_words, self.review_words_number, self.sessions_number)
 
     def reset(self):
-        self._state = self.new_initial_state()
+        """ initialize the state of environment"""
+        self._state = self.new_initial_state()  # get the initial state of environment
         self._should_reset = False
         # initialize the observations, and read from state object
-        observations = {"vocab_sessions": None,
-                        "current_session_num": None,
-                        "vocab_session": None, "legal_actions": [],
+        observations = {"history_words": None, "current_session_num": None,
+                        "sessions_number": self._state.sessions_number,
+                        "review_words_number": self._state.review_words_num,
+                        "current_session_words": None, "legal_actions": [],
                         "current_player": self._state.current_player,
                         "condition": None, "answer": None,
                         "answer_length": None, "student_spelling": None,
-                        "examiner_feedback": None, "history": None}
+                        "examiner_feedback": None, "history_information": None}
 
+        # add the legal action of each player
         for player_ID in range(self._player_num):
-            # 动作是另外添加的
             observations["legal_actions"].append(self._state.legal_actions(player_ID))
 
         return TimeStep(
@@ -91,26 +98,32 @@ class VocabSpellGame(EnvironmentInterface):
             step_type=StepType.FIRST)
 
     def get_time_step(self):
-        observations = {"vocab_sessions": self._state.vocab_sessions,
+        observations = {"history_words": self._state.history_words,
+                        "sessions_number": self._state.sessions_number,
+                        "review_words_number": self._state.review_words_num,
                         "current_session_num": self._state.current_session_num,
-                        "current_player": self._state.current_player, "legal_actions": [],
-                        "vocab_session": self._state.vocab_session, "condition": self._state.condition,
+                        "current_session_words": self._state.current_session_words, "legal_actions": [],
+                        "current_player": self._state.current_player,
+                        "condition": self._state.condition,
                         "answer": self._state.answer,
                         "answer_length": self._state.answer_length, "student_spelling": self._state.stu_spelling,
-                        "examiner_feedback": self._state.examiner_feedback, "history": self._state.history
+                        "examiner_feedback": self._state.examiner_feedback,
+                        "history_information": self._state.history_information
                         }
 
+        # add the legal action of each player
         for player_ID in range(self._player_num):
-            """每个agent的动作不同，所以需要单独添加"""
             observations["legal_actions"].append(self._state.legal_actions(player_ID))
 
         rewards = self._state.rewards  # how to define the rewards?!!!!!!!!!
         discounts = self._discount
-        step_type = StepType.LAST if self._state.is_terminal else StepType.MID  # 指示当前游戏状态
+        step_type = StepType.LAST if self._state.is_terminal else StepType.MID  # indicate the stage of environment
         self._should_reset = step_type == StepType.LAST  # True, if game terminate
+
         if step_type == StepType.LAST:
+            # what to do if the game terminate !!!!!!!!!!!!!!!!!
             pass
-            # 还要记录包含所有的信息，那么在state中应该有个history参数 state._history!!!!!!!!!!!!!!!!!
+
         return TimeStep(
             observations=observations,
             rewards=rewards,
@@ -120,6 +133,7 @@ class VocabSpellGame(EnvironmentInterface):
     def step(self, action):
         if self._should_reset:
             return self.reset()
+
         self._state.apply_action(action)  # (1) apply action/actions
         # (2) construct new TimeStep
         return self.get_time_step()

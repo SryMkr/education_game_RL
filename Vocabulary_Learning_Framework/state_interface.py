@@ -1,6 +1,5 @@
 """
-define the vocabulary spelling state
-
+define the state of environment
 state provide whole necessary information to help env construct the TimeStep
 
 """
@@ -12,12 +11,12 @@ from typing import List, Tuple, Dict
 class StateInterface(metaclass=abc.ABCMeta):
     """The state interface
     :args
-        self._vocab_sessions: the vocab sessions from environment
+        self._history_words: presents the history words
+        self._current_session_words: define how many words need to be reviewed in each sesion
         self._current_session_num: integer, the current session number
-        self._current_session: the current session, change over time
-        self._game_over: the game state
+
+        self._game_over: if the game terminate
         self._current_player: the current player
-        self._vocab_session: tasks in one session
         self._legal_actions: construct legal action for each agent
 
         self._condition: str = '', for student spelling
@@ -34,20 +33,23 @@ class StateInterface(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def __init__(self, vocab_sessions):
-        self._vocab_sessions = vocab_sessions
+    def __init__(self, history_words, review_words_number, sessions_number):
+
+        self._history_words = history_words
+        self._current_session_words: List[List[str]] = []
+        self._review_words_number = review_words_number
+        self._sessions_number = sessions_number  # the total session
         self._current_session_num: int = 1
         self._game_over: bool = False
         self._current_player: int = 0
         self._rewards: int = 0
-        self._vocab_session: List[List[str]] = []
-        self._legal_actions: List = [[i for i in range(len(self._vocab_sessions))],
+
+        self._legal_actions: List = [self._history_words,
                                      [],
                                      [i for i in range(26)],
                                      [0, 1]]
 
         self._current_corpus = tuple()
-
         self._condition: str = ''
         self._answer: str = ''
         self._answer_length: int = 0
@@ -56,9 +58,8 @@ class StateInterface(metaclass=abc.ABCMeta):
                                          'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
 
         self._stu_spelling: List[str] = []
-
         self._examiner_feedback: Tuple[List[int], float, float] = tuple()
-        self._history = {}  # what information does the history have?,搞个准确度和完整度吧
+        self._history_information: Dict[tuple, list] = {}
 
     @property
     def current_player(self) -> int:
@@ -112,18 +113,33 @@ class StateInterface(metaclass=abc.ABCMeta):
         return self._rewards
 
     @property
-    def vocab_sessions(self) -> List:
+    def history_words(self) -> List:
         """
         :return: Returns the all session tasks.
         """
-        return self._vocab_sessions
+        return self._history_words
 
     @property
-    def vocab_session(self) -> List[List[str]]:
+    def review_words_num(self) -> List:
+        """
+        :return: Returns the all session tasks.
+        """
+        return self._review_words_number
+
+    @property
+    def current_session_words(self) -> List[List[str]]:
         """
         :return: Returns the current session tasks.
         """
-        return self._vocab_session
+        return self._current_session_words
+
+    @property
+    def sessions_number(self):
+        """
+
+        :return: the review words number in each session
+        """
+        return self._sessions_number
 
     @property
     def answer_length(self) -> int:
@@ -161,9 +177,9 @@ class StateInterface(metaclass=abc.ABCMeta):
         return self._examiner_feedback
 
     @property
-    def history(self) -> Dict:
+    def history_information(self) -> Dict:
         """
         what kinds of observation should be record to help tutor make decision?
         [condition[phonemes], answer length, examiner feedback[letters], accuracy, completeness]
         """
-        return self._history
+        return self._history_information
